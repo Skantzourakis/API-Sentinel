@@ -18,6 +18,10 @@ Milestone 2 adds the initial ApiScan model connected to Project. This does not
 parse OpenAPI files yet. It only stores scan records so the database structure
 is ready for the next milestone.
 
+Milestone 3 adds OpenAPI file upload validation for `.json`, `.yaml`, and `.yml`
+files. The file content is not parsed yet; the backend creates a scan record
+with the uploaded file name.
+
 Implemented endpoints:
 
 ```http
@@ -28,6 +32,7 @@ PUT    /api/projects/{id}
 DELETE /api/projects/{id}
 
 POST   /api/projects/{projectId}/scans
+POST   /api/projects/{projectId}/scans/upload
 GET    /api/projects/{projectId}/scans
 GET    /api/scans/{scanId}
 ```
