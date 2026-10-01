@@ -12,7 +12,11 @@ The goal is to learn and demonstrate real backend engineering through a practica
 
 ## Current Milestone
 
-Milestone 1 implements only Project CRUD.
+Milestone 1 implements Project CRUD.
+
+Milestone 2 adds the initial ApiScan model connected to Project. This does not
+parse OpenAPI files yet. It only stores scan records so the database structure
+is ready for the next milestone.
 
 Implemented endpoints:
 
@@ -22,6 +26,10 @@ GET    /api/projects
 GET    /api/projects/{id}
 PUT    /api/projects/{id}
 DELETE /api/projects/{id}
+
+POST   /api/projects/{projectId}/scans
+GET    /api/projects/{projectId}/scans
+GET    /api/scans/{scanId}
 ```
 
 ## Planned Direction
