@@ -1,9 +1,10 @@
-﻿package com.apisentinel.dto.project;
+package com.apisentinel.dto.project;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 //Data Transfer Object
 //ProjectRequest for User-to-Server communication.
+//used for receiving project data from the client for processing requests.
 public class ProjectRequest {
 
     

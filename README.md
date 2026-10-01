@@ -1,4 +1,4 @@
-﻿# API Sentinel
+# API Sentinel
 
 API Sentinel is a Spring Boot backend for static API security analysis.
 

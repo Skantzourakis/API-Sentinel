@@ -1,4 +1,4 @@
-﻿package com.apisentinel.exception;
+package com.apisentinel.exception;
 
 import java.time.Instant;
 import java.util.List;

@@ -1,9 +1,11 @@
-﻿package com.apisentinel.dto.project;
+package com.apisentinel.dto.project;
 
 import com.apisentinel.entity.Project;
 
 import java.time.Instant;
-
+//Data Transfer Object
+//ProjectResponse for Server-to-User communication.
+//used for sending project data back to the client after processing requests.
 public class ProjectResponse {
 
     private Long id;

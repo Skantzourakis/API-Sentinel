@@ -1,4 +1,4 @@
-﻿package com.apisentinel.exception;
+package com.apisentinel.exception;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

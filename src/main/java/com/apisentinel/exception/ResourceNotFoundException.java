@@ -1,4 +1,4 @@
-﻿package com.apisentinel.exception;
+package com.apisentinel.exception;
 
 public class ResourceNotFoundException extends RuntimeException {
 

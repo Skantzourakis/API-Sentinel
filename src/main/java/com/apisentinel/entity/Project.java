@@ -1,4 +1,4 @@
-﻿package com.apisentinel.entity;
+package com.apisentinel.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -13,6 +13,10 @@ import java.time.Instant;
 
 @Entity
 @Table(name = "projects")
+//Describes how the table will be mapped in the database. 
+//Used for storing project data in the database. Represents a project entity with attributes like id, name, description, createdAt, and updatedAt.
+//The class includes JPA annotations for mapping to the database table and lifecycle callbacks for automatically setting timestamps.
+//Id is identification for the project, name is the name of the project, description is a brief description of the project, createdAt is the timestamp when the project was created, and updatedAt is the timestamp when the project was last updated.
 public class Project {
 
     @Id
