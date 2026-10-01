@@ -4,14 +4,20 @@ import com.apisentinel.dto.scan.ApiScanRequest;
 import com.apisentinel.dto.scan.ApiScanResponse;
 import com.apisentinel.entity.ApiScan;
 import com.apisentinel.entity.Project;
+import com.apisentinel.entity.ScanStatus;
 import com.apisentinel.exception.BadRequestException;
 import com.apisentinel.exception.ResourceNotFoundException;
 import com.apisentinel.repository.ApiScanRepository;
 import com.apisentinel.repository.ProjectRepository;
+import com.apisentinel.scanner.OpenApiParserService;
+import com.apisentinel.scanner.model.OpenApiParseResult;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -23,10 +29,16 @@ public class ScanService {
 
     private final ApiScanRepository apiScanRepository;
     private final ProjectRepository projectRepository;
+    private final OpenApiParserService openApiParserService;
 
-    public ScanService(ApiScanRepository apiScanRepository, ProjectRepository projectRepository) {
+    public ScanService(
+            ApiScanRepository apiScanRepository,
+            ProjectRepository projectRepository,
+            OpenApiParserService openApiParserService
+    ) {
         this.apiScanRepository = apiScanRepository;
         this.projectRepository = projectRepository;
+        this.openApiParserService = openApiParserService;
     }
 
     @Transactional
@@ -42,7 +54,12 @@ public class ScanService {
         Project project = findProject(projectId);
         validateOpenApiFile(file);
 
+        OpenApiParseResult parseResult = parseOpenApiFile(file);
         ApiScan scan = new ApiScan(project, normalizeFileName(file.getOriginalFilename()));
+        scan.setEndpointCount(parseResult.getEndpointCount());
+        scan.setStatus(ScanStatus.COMPLETED);
+        scan.setCompletedAt(Instant.now());
+
         ApiScan savedScan = apiScanRepository.save(scan);
         return ApiScanResponse.from(savedScan);
     }
@@ -94,6 +111,15 @@ public class ScanService {
 
         if (!allowedExtension) {
             throw new BadRequestException("Only .json, .yaml, and .yml OpenAPI files are supported");
+        }
+    }
+
+    private OpenApiParseResult parseOpenApiFile(MultipartFile file) {
+        try {
+            String content = new String(file.getBytes(), StandardCharsets.UTF_8);
+            return openApiParserService.parse(content);
+        } catch (IOException e) {
+            throw new BadRequestException("Could not read uploaded OpenAPI file");
         }
     }
 }

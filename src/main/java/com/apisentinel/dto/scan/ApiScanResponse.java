@@ -11,6 +11,7 @@ public class ApiScanResponse {
     private Long projectId;
     private ScanStatus status;
     private Integer riskScore;
+    private Integer endpointCount;
     private String openApiFileName;
     private Instant createdAt;
     private Instant completedAt;
@@ -21,6 +22,7 @@ public class ApiScanResponse {
         response.projectId = scan.getProject().getId();
         response.status = scan.getStatus();
         response.riskScore = scan.getRiskScore();
+        response.endpointCount = scan.getEndpointCount();
         response.openApiFileName = scan.getOpenApiFileName();
         response.createdAt = scan.getCreatedAt();
         response.completedAt = scan.getCompletedAt();
@@ -41,6 +43,10 @@ public class ApiScanResponse {
 
     public Integer getRiskScore() {
         return riskScore;
+    }
+
+    public Integer getEndpointCount() {
+        return endpointCount;
     }
 
     public String getOpenApiFileName() {

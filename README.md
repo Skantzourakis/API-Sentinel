@@ -19,8 +19,10 @@ parse OpenAPI files yet. It only stores scan records so the database structure
 is ready for the next milestone.
 
 Milestone 3 adds OpenAPI file upload validation for `.json`, `.yaml`, and `.yml`
-files. The file content is not parsed yet; the backend creates a scan record
-with the uploaded file name.
+files.
+
+Milestone 4 parses uploaded OpenAPI files and stores how many API operations
+were found in the scan record.
 
 Implemented endpoints:
 

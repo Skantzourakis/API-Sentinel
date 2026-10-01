@@ -34,6 +34,9 @@ public class ApiScan {
     @Column
     private Integer riskScore;
 
+    @Column
+    private Integer endpointCount;
+
     @Column(length = 255)
     private String openApiFileName;
 
@@ -51,6 +54,7 @@ public class ApiScan {
         this.openApiFileName = openApiFileName;
         this.status = ScanStatus.PENDING;
         this.riskScore = 0;
+        this.endpointCount = 0;
     }
 
     @PrePersist
@@ -80,6 +84,14 @@ public class ApiScan {
 
     public void setRiskScore(Integer riskScore) {
         this.riskScore = riskScore;
+    }
+
+    public Integer getEndpointCount() {
+        return endpointCount;
+    }
+
+    public void setEndpointCount(Integer endpointCount) {
+        this.endpointCount = endpointCount;
     }
 
     public String getOpenApiFileName() {
