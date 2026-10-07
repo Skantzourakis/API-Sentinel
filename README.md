@@ -24,6 +24,9 @@ files.
 Milestone 4 parses uploaded OpenAPI files and stores how many API operations
 were found in the scan record.
 
+Milestone 5 creates initial security findings from deterministic rules and
+stores them per scan.
+
 Implemented endpoints:
 
 ```http
@@ -37,6 +40,7 @@ POST   /api/projects/{projectId}/scans
 POST   /api/projects/{projectId}/scans/upload
 GET    /api/projects/{projectId}/scans
 GET    /api/scans/{scanId}
+GET    /api/scans/{scanId}/findings
 ```
 
 ## Planned Direction

@@ -1,5 +1,6 @@
 package com.apisentinel.controller;
 
+import com.apisentinel.dto.finding.FindingResponse;
 import com.apisentinel.dto.scan.ApiScanRequest;
 import com.apisentinel.dto.scan.ApiScanResponse;
 import com.apisentinel.service.ScanService;
@@ -54,5 +55,10 @@ public class ScanController {
     @GetMapping("/scans/{scanId}")
     public ApiScanResponse getScan(@PathVariable Long scanId) {
         return scanService.getScan(scanId);
+    }
+
+    @GetMapping("/scans/{scanId}/findings")
+    public List<FindingResponse> getFindingsForScan(@PathVariable Long scanId) {
+        return scanService.getFindingsForScan(scanId);
     }
 }

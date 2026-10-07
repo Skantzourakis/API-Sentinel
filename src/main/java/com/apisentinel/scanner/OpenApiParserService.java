@@ -31,16 +31,21 @@ public class OpenApiParserService {
             return new OpenApiParseResult(endpoints);
         }
 
-        openAPI.getPaths().forEach((path, pathItem) -> endpoints.addAll(extractEndpoints(path, pathItem)));
+        boolean globalSecurity = openAPI.getSecurity() != null && !openAPI.getSecurity().isEmpty();
+        openAPI.getPaths().forEach((path, pathItem) -> endpoints.addAll(extractEndpoints(path, pathItem, globalSecurity)));
         return new OpenApiParseResult(endpoints);
     }
 
-    private List<ApiEndpointInfo> extractEndpoints(String path, PathItem pathItem) {
+    private List<ApiEndpointInfo> extractEndpoints(String path, PathItem pathItem, boolean globalSecurity) {
         List<ApiEndpointInfo> endpoints = new ArrayList<>();
 
         for (Map.Entry<PathItem.HttpMethod, Operation> entry : pathItem.readOperationsMap().entrySet()) {
+            Operation operation = entry.getValue();
             String method = entry.getKey().name().toUpperCase(Locale.ROOT);
-            endpoints.add(new ApiEndpointInfo(method, path));
+            boolean operationSecurity = operation.getSecurity() != null && !operation.getSecurity().isEmpty();
+            boolean secured = globalSecurity || operationSecurity;
+            boolean hasRequestBody = operation.getRequestBody() != null;
+            endpoints.add(new ApiEndpointInfo(method, path, secured, hasRequestBody));
         }
 
         return endpoints;

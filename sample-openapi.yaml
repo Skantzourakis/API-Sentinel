@@ -21,3 +21,15 @@ paths:
       responses:
         "200":
           description: OK
+  /admin/users:
+    get:
+      summary: List admin users
+      responses:
+        "200":
+          description: OK
+  /payments:
+    post:
+      summary: Create payment
+      responses:
+        "201":
+          description: Created

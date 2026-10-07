@@ -1,15 +1,20 @@
 package com.apisentinel.service;
 
+import com.apisentinel.dto.finding.FindingResponse;
 import com.apisentinel.dto.scan.ApiScanRequest;
 import com.apisentinel.dto.scan.ApiScanResponse;
 import com.apisentinel.entity.ApiScan;
+import com.apisentinel.entity.Finding;
+import com.apisentinel.entity.FindingSeverity;
 import com.apisentinel.entity.Project;
 import com.apisentinel.entity.ScanStatus;
 import com.apisentinel.exception.BadRequestException;
 import com.apisentinel.exception.ResourceNotFoundException;
 import com.apisentinel.repository.ApiScanRepository;
+import com.apisentinel.repository.FindingRepository;
 import com.apisentinel.repository.ProjectRepository;
 import com.apisentinel.scanner.OpenApiParserService;
+import com.apisentinel.scanner.SecurityScanner;
 import com.apisentinel.scanner.model.OpenApiParseResult;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,17 +33,23 @@ public class ScanService {
     private static final Set<String> ALLOWED_OPENAPI_EXTENSIONS = Set.of(".json", ".yaml", ".yml");
 
     private final ApiScanRepository apiScanRepository;
+    private final FindingRepository findingRepository;
     private final ProjectRepository projectRepository;
     private final OpenApiParserService openApiParserService;
+    private final SecurityScanner securityScanner;
 
     public ScanService(
             ApiScanRepository apiScanRepository,
+            FindingRepository findingRepository,
             ProjectRepository projectRepository,
-            OpenApiParserService openApiParserService
+            OpenApiParserService openApiParserService,
+            SecurityScanner securityScanner
     ) {
         this.apiScanRepository = apiScanRepository;
+        this.findingRepository = findingRepository;
         this.projectRepository = projectRepository;
         this.openApiParserService = openApiParserService;
+        this.securityScanner = securityScanner;
     }
 
     @Transactional
@@ -57,10 +68,14 @@ public class ScanService {
         OpenApiParseResult parseResult = parseOpenApiFile(file);
         ApiScan scan = new ApiScan(project, normalizeFileName(file.getOriginalFilename()));
         scan.setEndpointCount(parseResult.getEndpointCount());
+
+        List<Finding> findings = securityScanner.scan(scan, parseResult.getEndpoints());
+        scan.setRiskScore(calculateRiskScore(findings));
         scan.setStatus(ScanStatus.COMPLETED);
         scan.setCompletedAt(Instant.now());
 
         ApiScan savedScan = apiScanRepository.save(scan);
+        findingRepository.saveAll(findings);
         return ApiScanResponse.from(savedScan);
     }
 
@@ -81,6 +96,18 @@ public class ScanService {
         ApiScan scan = apiScanRepository.findById(scanId)
                 .orElseThrow(() -> new ResourceNotFoundException("Scan with id " + scanId + " was not found"));
         return ApiScanResponse.from(scan);
+    }
+
+    @Transactional(readOnly = true)
+    public List<FindingResponse> getFindingsForScan(Long scanId) {
+        if (!apiScanRepository.existsById(scanId)) {
+            throw new ResourceNotFoundException("Scan with id " + scanId + " was not found");
+        }
+
+        return findingRepository.findByScanId(scanId)
+                .stream()
+                .map(FindingResponse::from)
+                .toList();
     }
 
     private Project findProject(Long projectId) {
@@ -121,5 +148,22 @@ public class ScanService {
         } catch (IOException e) {
             throw new BadRequestException("Could not read uploaded OpenAPI file");
         }
+    }
+
+    private int calculateRiskScore(List<Finding> findings) {
+        int score = findings.stream()
+                .map(Finding::getSeverity)
+                .mapToInt(this::severityWeight)
+                .sum();
+        return Math.min(score, 100);
+    }
+
+    private int severityWeight(FindingSeverity severity) {
+        return switch (severity) {
+            case LOW -> 5;
+            case MEDIUM -> 15;
+            case HIGH -> 30;
+            case CRITICAL -> 45;
+        };
     }
 }
