@@ -8,4 +8,6 @@ import java.util.List;
 public interface FindingRepository extends JpaRepository<Finding, Long> {
 
     List<Finding> findByScanId(Long scanId);
+
+    void deleteByScanProjectId(Long projectId);
 }

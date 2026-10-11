@@ -4,6 +4,8 @@ import com.apisentinel.dto.project.ProjectRequest;
 import com.apisentinel.dto.project.ProjectResponse;
 import com.apisentinel.entity.Project;
 import com.apisentinel.exception.ResourceNotFoundException;
+import com.apisentinel.repository.ApiScanRepository;
+import com.apisentinel.repository.FindingRepository;
 import com.apisentinel.repository.ProjectRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,9 +17,17 @@ import java.util.List;
 public class ProjectService {
 
     private final ProjectRepository projectRepository;
+    private final ApiScanRepository apiScanRepository;
+    private final FindingRepository findingRepository;
 
-    public ProjectService(ProjectRepository projectRepository) {
+    public ProjectService(
+            ProjectRepository projectRepository,
+            ApiScanRepository apiScanRepository,
+            FindingRepository findingRepository
+    ) {
         this.projectRepository = projectRepository;
+        this.apiScanRepository = apiScanRepository;
+        this.findingRepository = findingRepository;
     }
 
     @Transactional
@@ -51,6 +61,8 @@ public class ProjectService {
     @Transactional
     public void deleteProject(Long id) {
         Project project = findProject(id);
+        findingRepository.deleteByScanProjectId(id);
+        apiScanRepository.deleteByProjectId(id);
         projectRepository.delete(project);
     }
 

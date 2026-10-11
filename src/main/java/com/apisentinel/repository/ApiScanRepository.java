@@ -8,4 +8,6 @@ import java.util.List;
 public interface ApiScanRepository extends JpaRepository<ApiScan, Long> {
 
     List<ApiScan> findByProjectIdOrderByCreatedAtDesc(Long projectId);
+
+    void deleteByProjectId(Long projectId);
 }
