@@ -42,8 +42,10 @@ public class OpenApiParserService {
         for (Map.Entry<PathItem.HttpMethod, Operation> entry : pathItem.readOperationsMap().entrySet()) {
             Operation operation = entry.getValue();
             String method = entry.getKey().name().toUpperCase(Locale.ROOT);
-            boolean operationSecurity = operation.getSecurity() != null && !operation.getSecurity().isEmpty();
-            boolean secured = globalSecurity || operationSecurity;
+            // Operation-level security overrides global security; "security: []" marks the operation as public.
+            boolean secured = operation.getSecurity() != null
+                    ? !operation.getSecurity().isEmpty()
+                    : globalSecurity;
             boolean hasRequestBody = operation.getRequestBody() != null;
             endpoints.add(new ApiEndpointInfo(method, path, secured, hasRequestBody));
         }
