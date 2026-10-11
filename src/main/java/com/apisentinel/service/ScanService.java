@@ -1,7 +1,6 @@
 package com.apisentinel.service;
 
 import com.apisentinel.dto.finding.FindingResponse;
-import com.apisentinel.dto.scan.ApiScanRequest;
 import com.apisentinel.dto.scan.ApiScanResponse;
 import com.apisentinel.entity.ApiScan;
 import com.apisentinel.entity.Finding;
@@ -52,21 +51,23 @@ public class ScanService {
         this.securityScanner = securityScanner;
     }
 
-    @Transactional
-    public ApiScanResponse createScan(Long projectId, ApiScanRequest request) {
-        Project project = findProject(projectId);
-        ApiScan scan = new ApiScan(project, normalizeFileName(request.getOpenApiFileName()));
-        ApiScan savedScan = apiScanRepository.save(scan);
-        return ApiScanResponse.from(savedScan);
-    }
-
-    @Transactional
+    // noRollbackFor keeps the FAILED scan in the history even though the request returns 400.
+    @Transactional(noRollbackFor = BadRequestException.class)
     public ApiScanResponse createScanFromUpload(Long projectId, MultipartFile file) {
         Project project = findProject(projectId);
         validateOpenApiFile(file);
 
-        OpenApiParseResult parseResult = parseOpenApiFile(file);
-        ApiScan scan = new ApiScan(project, normalizeFileName(file.getOriginalFilename()));
+        ApiScan scan = apiScanRepository.save(new ApiScan(project, normalizeFileName(file.getOriginalFilename())));
+
+        OpenApiParseResult parseResult;
+        try {
+            parseResult = parseOpenApiFile(file);
+        } catch (BadRequestException e) {
+            scan.setStatus(ScanStatus.FAILED);
+            scan.setCompletedAt(Instant.now());
+            throw e;
+        }
+
         scan.setEndpointCount(parseResult.getEndpointCount());
 
         List<Finding> findings = securityScanner.scan(scan, parseResult.getEndpoints());
@@ -74,9 +75,8 @@ public class ScanService {
         scan.setStatus(ScanStatus.COMPLETED);
         scan.setCompletedAt(Instant.now());
 
-        ApiScan savedScan = apiScanRepository.save(scan);
         findingRepository.saveAll(findings);
-        return ApiScanResponse.from(savedScan);
+        return ApiScanResponse.from(scan);
     }
 
     @Transactional(readOnly = true)

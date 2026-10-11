@@ -1,16 +1,13 @@
 package com.apisentinel.controller;
 
 import com.apisentinel.dto.finding.FindingResponse;
-import com.apisentinel.dto.scan.ApiScanRequest;
 import com.apisentinel.dto.scan.ApiScanResponse;
 import com.apisentinel.service.ScanService;
-import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -27,15 +24,6 @@ public class ScanController {
 
     public ScanController(ScanService scanService) {
         this.scanService = scanService;
-    }
-
-    @PostMapping("/projects/{projectId}/scans")
-    @ResponseStatus(HttpStatus.CREATED)
-    public ApiScanResponse createScan(
-            @PathVariable Long projectId,
-            @Valid @RequestBody ApiScanRequest request
-    ) {
-        return scanService.createScan(projectId, request);
     }
 
     @PostMapping(value = "/projects/{projectId}/scans/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

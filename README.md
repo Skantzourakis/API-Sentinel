@@ -27,6 +27,10 @@ were found in the scan record.
 Milestone 5 creates initial security findings from deterministic rules and
 stores them per scan.
 
+Milestone 6 fixes project deletion so scans and findings are removed with the
+project, respects operation-level `security: []` overrides when parsing, and
+records scans of invalid OpenAPI files as `FAILED`.
+
 Implemented endpoints:
 
 ```http
@@ -36,7 +40,6 @@ GET    /api/projects/{id}
 PUT    /api/projects/{id}
 DELETE /api/projects/{id}
 
-POST   /api/projects/{projectId}/scans
 POST   /api/projects/{projectId}/scans/upload
 GET    /api/projects/{projectId}/scans
 GET    /api/scans/{scanId}
