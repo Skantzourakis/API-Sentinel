@@ -1,17 +1,31 @@
 package com.apisentinel.scanner.model;
 
+import java.util.List;
+import java.util.Set;
+
 public class ApiEndpointInfo {
 
     private final String method;
     private final String path;
     private final boolean secured;
     private final boolean hasRequestBody;
+    private final List<String> queryParameters;
+    private final Set<String> responseCodes;
 
-    public ApiEndpointInfo(String method, String path, boolean secured, boolean hasRequestBody) {
+    public ApiEndpointInfo(
+            String method,
+            String path,
+            boolean secured,
+            boolean hasRequestBody,
+            List<String> queryParameters,
+            Set<String> responseCodes
+    ) {
         this.method = method;
         this.path = path;
         this.secured = secured;
         this.hasRequestBody = hasRequestBody;
+        this.queryParameters = List.copyOf(queryParameters);
+        this.responseCodes = Set.copyOf(responseCodes);
     }
 
     public String getMethod() {
@@ -28,5 +42,13 @@ public class ApiEndpointInfo {
 
     public boolean hasRequestBody() {
         return hasRequestBody;
+    }
+
+    public List<String> getQueryParameters() {
+        return queryParameters;
+    }
+
+    public Set<String> getResponseCodes() {
+        return responseCodes;
     }
 }
