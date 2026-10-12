@@ -70,7 +70,7 @@ public class ScanService {
 
         scan.setEndpointCount(parseResult.getEndpointCount());
 
-        List<Finding> findings = securityScanner.scan(scan, parseResult.getEndpoints());
+        List<Finding> findings = securityScanner.scan(scan, parseResult);
         scan.setRiskScore(calculateRiskScore(findings));
         scan.setStatus(ScanStatus.COMPLETED);
         scan.setCompletedAt(Instant.now());

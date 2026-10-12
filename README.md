@@ -31,6 +31,27 @@ Milestone 6 fixes project deletion so scans and findings are removed with the
 project, respects operation-level `security: []` overrides when parsing, and
 records scans of invalid OpenAPI files as `FAILED`.
 
+Milestone 7 manages the database schema with Flyway migrations
+(`src/main/resources/db/migration`). Hibernate only validates the schema.
+
+Milestone 8 extends the rule set to eight OWASP-inspired security rules.
+
+## Security Rules
+
+| Rule | Severity | Checks | OWASP API Top 10 |
+|------|----------|--------|------------------|
+| `ADMIN_WITHOUT_AUTH` | CRITICAL | Admin path without declared security | API2 Broken Authentication |
+| `UNAUTHENTICATED_WRITE` | HIGH | POST/PUT/PATCH/DELETE without declared security | API2 Broken Authentication |
+| `POTENTIAL_BOLA` | HIGH | Object identifier in path without declared security | API1 Broken Object Level Authorization |
+| `SENSITIVE_DATA_IN_QUERY` | HIGH | Passwords, tokens or keys in query parameters | API3 Broken Object Property Level Authorization |
+| `INSECURE_SERVER_URL` | HIGH | Server declared over plain HTTP | API8 Security Misconfiguration |
+| `MISSING_PAGINATION` | MEDIUM | List endpoint without limit/page/cursor parameters | API4 Unrestricted Resource Consumption |
+| `MISSING_REQUEST_BODY_SCHEMA` | MEDIUM | Write endpoint without request body schema | API8 Security Misconfiguration |
+| `MISSING_ERROR_RESPONSES` | LOW | Operation documents no 4xx or default response | API8 Security Misconfiguration |
+
+`sample-openapi.yaml` triggers every rule and also contains one endpoint
+(`GET /transactions`) that passes all of them.
+
 Implemented endpoints:
 
 ```http
