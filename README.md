@@ -41,6 +41,10 @@ filtered by severity, for example
 `GET /api/scans/{scanId}/findings?severity=HIGH&page=0&size=20`
 (`size` is capped at 100).
 
+Milestone 10 compares a scan with the previous completed scan of the same
+project (or any `baseScanId`) and reports new findings, resolved findings and
+the change in risk score.
+
 ## Security Rules
 
 | Rule | Severity | Checks | OWASP API Top 10 |
@@ -71,6 +75,7 @@ GET    /api/projects/{projectId}/scans
 GET    /api/scans/{scanId}
 GET    /api/scans/{scanId}/findings?severity=&page=&size=
 GET    /api/scans/{scanId}/summary
+GET    /api/scans/{scanId}/comparison?baseScanId=
 ```
 
 ## Planned Direction

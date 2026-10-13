@@ -28,6 +28,8 @@ public interface FindingRepository extends JpaRepository<Finding, Long> {
 
     Page<Finding> findByScanIdAndSeverityOrderByIdAsc(Long scanId, FindingSeverity severity, Pageable pageable);
 
+    List<Finding> findByScanIdOrderByIdAsc(Long scanId);
+
     @Query("""
             SELECT f.severity AS severity, COUNT(f) AS count
             FROM Finding f
