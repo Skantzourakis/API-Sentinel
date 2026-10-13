@@ -2,9 +2,12 @@ package com.apisentinel.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
@@ -35,12 +38,17 @@ public class Project {
     @Column(nullable = false)
     private Instant updatedAt;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "owner_id")
+    private UserAccount owner;
+
     protected Project() {
     }
 
-    public Project(String name, String description) {
+    public Project(String name, String description, UserAccount owner) {
         this.name = name;
         this.description = description;
+        this.owner = owner;
     }
 
     @PrePersist
@@ -81,5 +89,9 @@ public class Project {
 
     public Instant getUpdatedAt() {
         return updatedAt;
+    }
+
+    public UserAccount getOwner() {
+        return owner;
     }
 }

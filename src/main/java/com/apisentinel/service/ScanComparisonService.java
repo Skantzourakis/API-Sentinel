@@ -36,10 +36,10 @@ public class ScanComparisonService {
     }
 
     @Transactional(readOnly = true)
-    public ScanComparisonResponse compare(Long scanId, Long baseScanId) {
-        ApiScan scan = findCompletedScan(scanId);
+    public ScanComparisonResponse compare(Long ownerId, Long scanId, Long baseScanId) {
+        ApiScan scan = findCompletedScan(ownerId, scanId);
         ApiScan baseScan = baseScanId != null
-                ? findCompletedScan(baseScanId)
+                ? findCompletedScan(ownerId, baseScanId)
                 : findPreviousCompletedScan(scan);
 
         if (!baseScan.getProject().getId().equals(scan.getProject().getId())) {
@@ -62,8 +62,8 @@ public class ScanComparisonService {
         return ScanComparisonResponse.from(scan, baseScan, newFindings, resolvedFindings, unchangedFindings);
     }
 
-    private ApiScan findCompletedScan(Long scanId) {
-        ApiScan scan = apiScanRepository.findById(scanId)
+    private ApiScan findCompletedScan(Long ownerId, Long scanId) {
+        ApiScan scan = apiScanRepository.findByIdAndProjectOwnerId(scanId, ownerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Scan with id " + scanId + " was not found"));
         // FAILED scans have no findings, so comparing with them would report everything as new or resolved.
         if (scan.getStatus() != ScanStatus.COMPLETED) {

@@ -11,6 +11,10 @@ public interface ApiScanRepository extends JpaRepository<ApiScan, Long> {
 
     List<ApiScan> findByProjectIdOrderByCreatedAtDesc(Long projectId);
 
+    Optional<ApiScan> findByIdAndProjectOwnerId(Long id, Long ownerId);
+
+    boolean existsByIdAndProjectOwnerId(Long id, Long ownerId);
+
     // Ids are generated in insertion order, so the highest smaller id is the previous scan.
     Optional<ApiScan> findFirstByProjectIdAndStatusAndIdLessThanOrderByIdDesc(Long projectId, ScanStatus status, Long id);
 

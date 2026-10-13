@@ -62,8 +62,8 @@ public class ScanService {
 
     // noRollbackFor keeps the FAILED scan in the history even though the request returns 400.
     @Transactional(noRollbackFor = BadRequestException.class)
-    public ApiScanResponse createScanFromUpload(Long projectId, MultipartFile file) {
-        Project project = findProject(projectId);
+    public ApiScanResponse createScanFromUpload(Long ownerId, Long projectId, MultipartFile file) {
+        Project project = findProject(ownerId, projectId);
         validateOpenApiFile(file);
 
         ApiScan scan = apiScanRepository.save(new ApiScan(project, normalizeFileName(file.getOriginalFilename())));
@@ -89,8 +89,8 @@ public class ScanService {
     }
 
     @Transactional(readOnly = true)
-    public List<ApiScanResponse> getScansForProject(Long projectId) {
-        if (!projectRepository.existsById(projectId)) {
+    public List<ApiScanResponse> getScansForProject(Long ownerId, Long projectId) {
+        if (!projectRepository.existsByIdAndOwnerId(projectId, ownerId)) {
             throw new ResourceNotFoundException("Project with id " + projectId + " was not found");
         }
 
@@ -101,15 +101,13 @@ public class ScanService {
     }
 
     @Transactional(readOnly = true)
-    public ApiScanResponse getScan(Long scanId) {
-        ApiScan scan = apiScanRepository.findById(scanId)
-                .orElseThrow(() -> new ResourceNotFoundException("Scan with id " + scanId + " was not found"));
-        return ApiScanResponse.from(scan);
+    public ApiScanResponse getScan(Long ownerId, Long scanId) {
+        return ApiScanResponse.from(findScan(ownerId, scanId));
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<FindingResponse> getFindingsForScan(Long scanId, FindingSeverity severity, int page, int size) {
-        if (!apiScanRepository.existsById(scanId)) {
+    public PageResponse<FindingResponse> getFindingsForScan(Long ownerId, Long scanId, FindingSeverity severity, int page, int size) {
+        if (!apiScanRepository.existsByIdAndProjectOwnerId(scanId, ownerId)) {
             throw new ResourceNotFoundException("Scan with id " + scanId + " was not found");
         }
         if (page < 0) {
@@ -129,9 +127,8 @@ public class ScanService {
     }
 
     @Transactional(readOnly = true)
-    public ScanSummaryResponse getScanSummary(Long scanId) {
-        ApiScan scan = apiScanRepository.findById(scanId)
-                .orElseThrow(() -> new ResourceNotFoundException("Scan with id " + scanId + " was not found"));
+    public ScanSummaryResponse getScanSummary(Long ownerId, Long scanId) {
+        ApiScan scan = findScan(ownerId, scanId);
 
         // Start every severity at 0 so missing ones still appear, most severe first.
         Map<FindingSeverity, Long> findingsBySeverity = new LinkedHashMap<>();
@@ -145,9 +142,15 @@ public class ScanService {
         return ScanSummaryResponse.from(scan, findingsBySeverity);
     }
 
-    private Project findProject(Long projectId) {
-        return projectRepository.findById(projectId)
+    // Scans of other users' projects are reported as not found.
+    private Project findProject(Long ownerId, Long projectId) {
+        return projectRepository.findByIdAndOwnerId(projectId, ownerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Project with id " + projectId + " was not found"));
+    }
+
+    private ApiScan findScan(Long ownerId, Long scanId) {
+        return apiScanRepository.findByIdAndProjectOwnerId(scanId, ownerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Scan with id " + scanId + " was not found"));
     }
 
     private String normalizeFileName(String fileName) {

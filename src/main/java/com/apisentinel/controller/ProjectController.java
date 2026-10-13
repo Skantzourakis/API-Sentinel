@@ -2,9 +2,12 @@ package com.apisentinel.controller;
 
 import com.apisentinel.dto.project.ProjectRequest;
 import com.apisentinel.dto.project.ProjectResponse;
+import com.apisentinel.security.CurrentUser;
 import com.apisentinel.service.ProjectService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -29,28 +32,32 @@ public class ProjectController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public ProjectResponse createProject(@Valid @RequestBody ProjectRequest request) {
-        return projectService.createProject(request);
+    public ProjectResponse createProject(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody ProjectRequest request) {
+        return projectService.createProject(CurrentUser.idOf(jwt), request);
     }
 
     @GetMapping
-    public List<ProjectResponse> getProjects() {
-        return projectService.getProjects();
+    public List<ProjectResponse> getProjects(@AuthenticationPrincipal Jwt jwt) {
+        return projectService.getProjects(CurrentUser.idOf(jwt));
     }
 
     @GetMapping("/{id}")
-    public ProjectResponse getProject(@PathVariable Long id) {
-        return projectService.getProject(id);
+    public ProjectResponse getProject(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
+        return projectService.getProject(CurrentUser.idOf(jwt), id);
     }
 
     @PutMapping("/{id}")
-    public ProjectResponse updateProject(@PathVariable Long id, @Valid @RequestBody ProjectRequest request) {
-        return projectService.updateProject(id, request);
+    public ProjectResponse updateProject(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long id,
+            @Valid @RequestBody ProjectRequest request
+    ) {
+        return projectService.updateProject(CurrentUser.idOf(jwt), id, request);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteProject(@PathVariable Long id) {
-        projectService.deleteProject(id);
+    public void deleteProject(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
+        projectService.deleteProject(CurrentUser.idOf(jwt), id);
     }
 }

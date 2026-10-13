@@ -5,9 +5,12 @@ import com.apisentinel.dto.finding.FindingResponse;
 import com.apisentinel.dto.scan.ApiScanResponse;
 import com.apisentinel.dto.scan.ScanSummaryResponse;
 import com.apisentinel.entity.FindingSeverity;
+import com.apisentinel.security.CurrentUser;
 import com.apisentinel.service.ScanService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -32,34 +35,36 @@ public class ScanController {
     @PostMapping(value = "/projects/{projectId}/scans/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     public ApiScanResponse uploadOpenApiFile(
+            @AuthenticationPrincipal Jwt jwt,
             @PathVariable Long projectId,
             @RequestParam("file") MultipartFile file
     ) {
-        return scanService.createScanFromUpload(projectId, file);
+        return scanService.createScanFromUpload(CurrentUser.idOf(jwt), projectId, file);
     }
 
     @GetMapping("/projects/{projectId}/scans")
-    public List<ApiScanResponse> getScansForProject(@PathVariable Long projectId) {
-        return scanService.getScansForProject(projectId);
+    public List<ApiScanResponse> getScansForProject(@AuthenticationPrincipal Jwt jwt, @PathVariable Long projectId) {
+        return scanService.getScansForProject(CurrentUser.idOf(jwt), projectId);
     }
 
     @GetMapping("/scans/{scanId}")
-    public ApiScanResponse getScan(@PathVariable Long scanId) {
-        return scanService.getScan(scanId);
+    public ApiScanResponse getScan(@AuthenticationPrincipal Jwt jwt, @PathVariable Long scanId) {
+        return scanService.getScan(CurrentUser.idOf(jwt), scanId);
     }
 
     @GetMapping("/scans/{scanId}/findings")
     public PageResponse<FindingResponse> getFindingsForScan(
+            @AuthenticationPrincipal Jwt jwt,
             @PathVariable Long scanId,
             @RequestParam(required = false) FindingSeverity severity,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
-        return scanService.getFindingsForScan(scanId, severity, page, size);
+        return scanService.getFindingsForScan(CurrentUser.idOf(jwt), scanId, severity, page, size);
     }
 
     @GetMapping("/scans/{scanId}/summary")
-    public ScanSummaryResponse getScanSummary(@PathVariable Long scanId) {
-        return scanService.getScanSummary(scanId);
+    public ScanSummaryResponse getScanSummary(@AuthenticationPrincipal Jwt jwt, @PathVariable Long scanId) {
+        return scanService.getScanSummary(CurrentUser.idOf(jwt), scanId);
     }
 }

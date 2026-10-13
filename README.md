@@ -45,6 +45,28 @@ Milestone 10 compares a scan with the previous completed scan of the same
 project (or any `baseScanId`) and reports new findings, resolved findings and
 the change in risk score.
 
+Milestone 11 adds user accounts with JWT authentication. Every endpoint except
+`/api/auth/**` requires a bearer token, and users only see their own projects,
+scans and findings. Another user's resources return `404`, so their existence is
+not revealed.
+
+## Authentication
+
+```http
+POST /api/auth/register   {"email": "...", "password": "..."}
+POST /api/auth/login      {"email": "...", "password": "..."}  -> {"accessToken": "...", "tokenType": "Bearer", "expiresIn": 3600}
+```
+
+Send the token on every other request:
+
+```http
+Authorization: Bearer <accessToken>
+```
+
+Passwords are stored as BCrypt hashes. Tokens are signed with HS256 using
+`JWT_SECRET` (at least 32 characters); the default in `application.properties`
+is for local development only.
+
 ## Security Rules
 
 | Rule | Severity | Checks | OWASP API Top 10 |
@@ -64,6 +86,9 @@ the change in risk score.
 Implemented endpoints:
 
 ```http
+POST   /api/auth/register
+POST   /api/auth/login
+
 POST   /api/projects
 GET    /api/projects
 GET    /api/projects/{id}
