@@ -4,6 +4,7 @@ import com.apisentinel.entity.ApiScan;
 import com.apisentinel.entity.Finding;
 import com.apisentinel.entity.FindingSeverity;
 import com.apisentinel.scanner.model.ApiEndpointInfo;
+import com.apisentinel.scanner.model.ResponseShape;
 import org.springframework.stereotype.Component;
 
 import java.util.Locale;
@@ -18,11 +19,16 @@ public class MissingPaginationRule implements SecurityRule {
             "limit", "offset", "page", "size", "pagesize", "perpage", "cursor", "pagetoken", "maxresults", "top"
     );
 
+    // Endpoints that return only the items the caller names, e.g. GET /albums?ids=1,2,3.
+    private static final Set<String> SELECTION_PARAMETERS = Set.of("ids");
+
     @Override
     public Optional<Finding> evaluate(ApiScan scan, ApiEndpointInfo endpoint) {
         // A path ending in a parameter such as /accounts/{id} returns a single item, not a list.
         boolean collectionRead = "GET".equals(endpoint.getMethod()) && !endpoint.getPath().endsWith("}");
-        if (!collectionRead || hasPaginationParameter(endpoint)) {
+        // An object response is a single resource (GET /me) or a page wrapper, not an unbounded list.
+        boolean returnsObject = endpoint.getResponseShape() == ResponseShape.OBJECT;
+        if (!collectionRead || returnsObject || hasParameter(endpoint, PAGINATION_PARAMETERS) || hasParameter(endpoint, SELECTION_PARAMETERS)) {
             return Optional.empty();
         }
 
@@ -39,9 +45,9 @@ public class MissingPaginationRule implements SecurityRule {
         ));
     }
 
-    private boolean hasPaginationParameter(ApiEndpointInfo endpoint) {
+    private boolean hasParameter(ApiEndpointInfo endpoint, Set<String> names) {
         return endpoint.getQueryParameters().stream()
                 .map(name -> name.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]", ""))
-                .anyMatch(PAGINATION_PARAMETERS::contains);
+                .anyMatch(names::contains);
     }
 }

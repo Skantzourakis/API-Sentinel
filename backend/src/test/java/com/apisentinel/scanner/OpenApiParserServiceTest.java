@@ -3,6 +3,7 @@ package com.apisentinel.scanner;
 import com.apisentinel.exception.BadRequestException;
 import com.apisentinel.scanner.model.ApiEndpointInfo;
 import com.apisentinel.scanner.model.OpenApiParseResult;
+import com.apisentinel.scanner.model.ResponseShape;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -26,6 +27,12 @@ class OpenApiParserServiceTest {
                 bearerAuth:
                   type: http
                   scheme: bearer
+              schemas:
+                User:
+                  type: object
+                  properties:
+                    email:
+                      type: string
             paths:
               /accounts:
                 parameters:
@@ -46,8 +53,23 @@ class OpenApiParserServiceTest {
                   responses:
                     "200":
                       description: OK
+                      content:
+                        application/json:
+                          schema:
+                            type: array
+                            items:
+                              type: object
                     "401":
                       description: Unauthorized
+              /me:
+                get:
+                  responses:
+                    "200":
+                      description: OK
+                      content:
+                        application/json:
+                          schema:
+                            $ref: "#/components/schemas/User"
               /health:
                 get:
                   security: []
@@ -77,7 +99,7 @@ class OpenApiParserServiceTest {
     void extractsEveryOperationAndTheServers() {
         OpenApiParseResult result = parser.parse(SPEC);
 
-        assertThat(result.getEndpointCount()).isEqualTo(3);
+        assertThat(result.getEndpointCount()).isEqualTo(4);
         assertThat(result.getServerUrls()).containsExactly("http://api.example.com");
     }
 
@@ -105,6 +127,15 @@ class OpenApiParserServiceTest {
         assertThat(endpoint(result, "GET", "/accounts").getResponseCodes()).containsExactlyInAnyOrder("200", "401");
         assertThat(endpoint(result, "POST", "/payments").hasRequestBody()).isTrue();
         assertThat(endpoint(result, "GET", "/health").hasRequestBody()).isFalse();
+    }
+
+    @Test
+    void readsTheShapeOfTheSuccessResponseAndFollowsReferences() {
+        OpenApiParseResult result = parser.parse(SPEC);
+
+        assertThat(endpoint(result, "GET", "/accounts").getResponseShape()).isEqualTo(ResponseShape.LIST);
+        assertThat(endpoint(result, "GET", "/me").getResponseShape()).isEqualTo(ResponseShape.OBJECT);
+        assertThat(endpoint(result, "GET", "/health").getResponseShape()).isEqualTo(ResponseShape.UNKNOWN);
     }
 
     @Test

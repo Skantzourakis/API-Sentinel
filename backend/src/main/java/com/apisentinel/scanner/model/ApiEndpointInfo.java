@@ -11,6 +11,7 @@ public class ApiEndpointInfo {
     private final boolean hasRequestBody;
     private final List<String> queryParameters;
     private final Set<String> responseCodes;
+    private final ResponseShape responseShape;
 
     public ApiEndpointInfo(
             String method,
@@ -18,7 +19,8 @@ public class ApiEndpointInfo {
             boolean secured,
             boolean hasRequestBody,
             List<String> queryParameters,
-            Set<String> responseCodes
+            Set<String> responseCodes,
+            ResponseShape responseShape
     ) {
         this.method = method;
         this.path = path;
@@ -26,6 +28,7 @@ public class ApiEndpointInfo {
         this.hasRequestBody = hasRequestBody;
         this.queryParameters = List.copyOf(queryParameters);
         this.responseCodes = Set.copyOf(responseCodes);
+        this.responseShape = responseShape;
     }
 
     public String getMethod() {
@@ -50,5 +53,9 @@ public class ApiEndpointInfo {
 
     public Set<String> getResponseCodes() {
         return responseCodes;
+    }
+
+    public ResponseShape getResponseShape() {
+        return responseShape;
     }
 }

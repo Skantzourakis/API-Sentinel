@@ -16,7 +16,9 @@ public class MissingRequestBodyRule implements SecurityRule {
 
     @Override
     public Optional<Finding> evaluate(ApiScan scan, ApiEndpointInfo endpoint) {
-        if (!WRITE_METHODS.contains(endpoint.getMethod()) || endpoint.hasRequestBody()) {
+        // Writes that take their input as query parameters, such as PUT /me/player/pause?device_id=, need no body.
+        boolean declaresInput = endpoint.hasRequestBody() || !endpoint.getQueryParameters().isEmpty();
+        if (!WRITE_METHODS.contains(endpoint.getMethod()) || declaresInput) {
             return Optional.empty();
         }
 
@@ -27,8 +29,8 @@ public class MissingRequestBodyRule implements SecurityRule {
                 endpoint.getPath(),
                 FindingSeverity.MEDIUM,
                 "WEAK_INPUT_CONTRACT",
-                "Write endpoint has no request body schema",
-                "This write operation does not declare a request body schema in the OpenAPI specification.",
+                "Write endpoint declares no input",
+                "This write operation declares neither a request body nor parameters, so the input it accepts is undocumented.",
                 "Define a request body schema so input validation expectations are clear and testable."
         ));
     }

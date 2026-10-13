@@ -101,7 +101,7 @@ curl localhost:8080/api/scans/1/summary -H "Authorization: Bearer <token>"
 {
   "scanId": 1,
   "status": "COMPLETED",
-  "riskScore": 100,
+  "riskScore": 96,
   "endpointCount": 6,
   "totalFindings": 14,
   "findingsBySeverity": { "CRITICAL": 1, "HIGH": 6, "MEDIUM": 3, "LOW": 4 }
@@ -120,12 +120,30 @@ curl localhost:8080/api/scans/1/summary -H "Authorization: Bearer <token>"
 | `POTENTIAL_BOLA` | HIGH | Object identifier in path without declared security | API1 Broken Object Level Authorization |
 | `SENSITIVE_DATA_IN_QUERY` | HIGH | Passwords, tokens or keys in query parameters | API3 Broken Object Property Level Authorization |
 | `INSECURE_SERVER_URL` | HIGH | Server declared over plain HTTP | API8 Security Misconfiguration |
-| `MISSING_PAGINATION` | MEDIUM | List endpoint without limit/page/cursor parameters | API4 Unrestricted Resource Consumption |
-| `MISSING_REQUEST_BODY_SCHEMA` | MEDIUM | Write endpoint without request body schema | API8 Security Misconfiguration |
+| `MISSING_PAGINATION` | MEDIUM | Endpoint returning a list (or an undescribed response) without limit/page/cursor parameters | API4 Unrestricted Resource Consumption |
+| `MISSING_REQUEST_BODY_SCHEMA` | MEDIUM | Write endpoint that declares neither a request body nor parameters | API8 Security Misconfiguration |
 | `MISSING_ERROR_RESPONSES` | LOW | Operation documents no 4xx or default response | API8 Security Misconfiguration |
 
 The parser follows the OpenAPI rule that operation-level `security` overrides the
 global setting, so an operation declaring `security: []` is treated as public.
+
+## Risk Score
+
+The score runs from 0 to 100. The most severe finding decides the band, and each
+finding then adds a little within it (critical 8, high 4, medium 2, low 1, halved):
+
+| Most severe finding | Score band |
+|---------------------|------------|
+| Critical | 75–100 |
+| High | 50–74 |
+| Medium | 25–49 |
+| Low | 5–24 |
+| None | 0 |
+
+So a long list of medium findings can never outrank a single critical one. An
+earlier version simply added up weights and capped the total at 100, which gave
+the Spotify Web API (36 medium findings, no high or critical) the same 100 as an
+API with an unauthenticated admin endpoint.
 
 ## API
 

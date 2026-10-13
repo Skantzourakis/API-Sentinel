@@ -4,6 +4,7 @@ import com.apisentinel.entity.Finding;
 import com.apisentinel.entity.FindingSeverity;
 import com.apisentinel.scanner.model.ApiEndpointInfo;
 import com.apisentinel.scanner.model.OpenApiParseResult;
+import com.apisentinel.scanner.model.ResponseShape;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
@@ -15,21 +16,25 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class SecurityRulesTest {
 
-    // A public endpoint that documents a 400 response; tests change only what they check.
+    // A public endpoint that documents a 400 response and no response schema; tests change only what they check.
     private static ApiEndpointInfo endpoint(String method, String path) {
-        return new ApiEndpointInfo(method, path, false, false, List.of(), Set.of("200", "400"));
+        return new ApiEndpointInfo(method, path, false, false, List.of(), Set.of("200", "400"), ResponseShape.UNKNOWN);
     }
 
     private static ApiEndpointInfo secured(String method, String path) {
-        return new ApiEndpointInfo(method, path, true, false, List.of(), Set.of("200", "400"));
+        return new ApiEndpointInfo(method, path, true, false, List.of(), Set.of("200", "400"), ResponseShape.UNKNOWN);
     }
 
     private static ApiEndpointInfo withQuery(String method, String path, String... queryParameters) {
-        return new ApiEndpointInfo(method, path, false, false, List.of(queryParameters), Set.of("200", "400"));
+        return new ApiEndpointInfo(method, path, false, false, List.of(queryParameters), Set.of("200", "400"), ResponseShape.UNKNOWN);
     }
 
     private static ApiEndpointInfo withResponses(String... codes) {
-        return new ApiEndpointInfo("GET", "/items/{id}", false, false, List.of(), Set.of(codes));
+        return new ApiEndpointInfo("GET", "/items/{id}", false, false, List.of(), Set.of(codes), ResponseShape.UNKNOWN);
+    }
+
+    private static ApiEndpointInfo returning(ResponseShape shape, String path) {
+        return new ApiEndpointInfo("GET", path, false, false, List.of(), Set.of("200", "400"), shape);
     }
 
     @Nested
@@ -106,9 +111,15 @@ class SecurityRulesTest {
 
         @Test
         void ignoresWriteWithBodyAndReads() {
-            ApiEndpointInfo withBody = new ApiEndpointInfo("POST", "/payments", false, true, List.of(), Set.of("400"));
+            ApiEndpointInfo withBody = new ApiEndpointInfo("POST", "/payments", false, true, List.of(), Set.of("400"), ResponseShape.UNKNOWN);
             assertThat(rule.evaluate(null, withBody)).isEmpty();
             assertThat(rule.evaluate(null, endpoint("GET", "/payments"))).isEmpty();
+        }
+
+        @Test
+        void acceptsWritesThatTakeQueryParameters() {
+            // e.g. PUT /me/player/pause?device_id=... has nothing to send in a body.
+            assertThat(rule.evaluate(null, withQuery("PUT", "/me/player/pause", "device_id"))).isEmpty();
         }
     }
 
@@ -161,6 +172,18 @@ class SecurityRulesTest {
         void ignoresSingleItemAndWriteEndpoints() {
             assertThat(rule.evaluate(null, endpoint("GET", "/accounts/{id}"))).isEmpty();
             assertThat(rule.evaluate(null, endpoint("POST", "/accounts"))).isEmpty();
+        }
+
+        @Test
+        void usesTheResponseSchemaWhenTheSpecificationHasOne() {
+            // GET /me returns one profile object, so it is not a list even though the path has no id.
+            assertThat(rule.evaluate(null, returning(ResponseShape.OBJECT, "/me"))).isEmpty();
+            assertThat(rule.evaluate(null, returning(ResponseShape.LIST, "/accounts"))).isPresent();
+        }
+
+        @Test
+        void ignoresEndpointsThatReturnOnlyTheRequestedIds() {
+            assertThat(rule.evaluate(null, withQuery("GET", "/albums", "ids"))).isEmpty();
         }
     }
 
