@@ -1,12 +1,46 @@
-import { Button } from '@/components/ui/button'
+import { Navigate, Outlet, createBrowserRouter, useLocation } from 'react-router'
+import { AppShell } from '@/components/app-shell'
+import { ButtonLink } from '@/components/button-link'
+import { EmptyState, Page } from '@/components/page'
+import { useAuth } from '@/lib/auth'
+import { AuthPage } from '@/pages/auth-page'
+import { ProjectPage } from '@/pages/project-page'
+import { ProjectsPage } from '@/pages/projects-page'
+import { ScanPage } from '@/pages/scan-page'
 
-// Temporary landing page; replaced by the router and real pages in the next steps.
-export default function App() {
+function RequireAuth() {
+  const { session } = useAuth()
+  const location = useLocation()
+  if (!session) return <Navigate to="/login" replace state={{ from: location }} />
+  return <Outlet />
+}
+
+function NotFound() {
   return (
-    <main className="flex min-h-svh flex-col items-center justify-center gap-4">
-      <h1 className="text-2xl font-semibold">API Sentinel</h1>
-      <p className="text-muted-foreground">Frontend setup is working.</p>
-      <Button>Get started</Button>
-    </main>
+    <Page>
+      <EmptyState title="Page not found" action={<ButtonLink to="/projects">Go to projects</ButtonLink>}>
+        The address may be mistyped, or the page belongs to another account.
+      </EmptyState>
+    </Page>
   )
 }
+
+export const router = createBrowserRouter([
+  { path: '/login', element: <AuthPage mode="login" /> },
+  { path: '/register', element: <AuthPage mode="register" /> },
+  {
+    element: <RequireAuth />,
+    children: [
+      {
+        element: <AppShell />,
+        children: [
+          { index: true, element: <Navigate to="/projects" replace /> },
+          { path: '/projects', element: <ProjectsPage /> },
+          { path: '/projects/:projectId', element: <ProjectPage /> },
+          { path: '/scans/:scanId', element: <ScanPage /> },
+          { path: '*', element: <NotFound /> },
+        ],
+      },
+    ],
+  },
+])
