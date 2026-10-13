@@ -1,8 +1,10 @@
 package com.apisentinel.controller;
 
+import com.apisentinel.dto.PageResponse;
 import com.apisentinel.dto.finding.FindingResponse;
 import com.apisentinel.dto.scan.ApiScanResponse;
 import com.apisentinel.dto.scan.ScanSummaryResponse;
+import com.apisentinel.entity.FindingSeverity;
 import com.apisentinel.service.ScanService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -47,8 +49,13 @@ public class ScanController {
     }
 
     @GetMapping("/scans/{scanId}/findings")
-    public List<FindingResponse> getFindingsForScan(@PathVariable Long scanId) {
-        return scanService.getFindingsForScan(scanId);
+    public PageResponse<FindingResponse> getFindingsForScan(
+            @PathVariable Long scanId,
+            @RequestParam(required = false) FindingSeverity severity,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        return scanService.getFindingsForScan(scanId, severity, page, size);
     }
 
     @GetMapping("/scans/{scanId}/summary")

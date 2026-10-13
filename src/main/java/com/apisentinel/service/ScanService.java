@@ -1,5 +1,6 @@
 package com.apisentinel.service;
 
+import com.apisentinel.dto.PageResponse;
 import com.apisentinel.dto.finding.FindingResponse;
 import com.apisentinel.dto.scan.ApiScanResponse;
 import com.apisentinel.dto.scan.ScanSummaryResponse;
@@ -17,6 +18,9 @@ import com.apisentinel.repository.SeverityCount;
 import com.apisentinel.scanner.OpenApiParserService;
 import com.apisentinel.scanner.SecurityScanner;
 import com.apisentinel.scanner.model.OpenApiParseResult;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -34,6 +38,7 @@ import java.util.Set;
 public class ScanService {
 
     private static final Set<String> ALLOWED_OPENAPI_EXTENSIONS = Set.of(".json", ".yaml", ".yml");
+    private static final int MAX_PAGE_SIZE = 100;
 
     private final ApiScanRepository apiScanRepository;
     private final FindingRepository findingRepository;
@@ -103,15 +108,24 @@ public class ScanService {
     }
 
     @Transactional(readOnly = true)
-    public List<FindingResponse> getFindingsForScan(Long scanId) {
+    public PageResponse<FindingResponse> getFindingsForScan(Long scanId, FindingSeverity severity, int page, int size) {
         if (!apiScanRepository.existsById(scanId)) {
             throw new ResourceNotFoundException("Scan with id " + scanId + " was not found");
         }
+        if (page < 0) {
+            throw new BadRequestException("Page must be 0 or greater");
+        }
+        // Capping the page size is what MissingPaginationRule asks other APIs to do.
+        if (size < 1 || size > MAX_PAGE_SIZE) {
+            throw new BadRequestException("Size must be between 1 and " + MAX_PAGE_SIZE);
+        }
 
-        return findingRepository.findByScanId(scanId)
-                .stream()
-                .map(FindingResponse::from)
-                .toList();
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Finding> findings = severity == null
+                ? findingRepository.findPageByScanId(scanId, pageable)
+                : findingRepository.findByScanIdAndSeverityOrderByIdAsc(scanId, severity, pageable);
+
+        return PageResponse.from(findings, FindingResponse::from);
     }
 
     @Transactional(readOnly = true)

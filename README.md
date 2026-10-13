@@ -36,6 +36,11 @@ Milestone 7 manages the database schema with Flyway migrations
 
 Milestone 8 extends the rule set to eight OWASP-inspired security rules.
 
+Milestone 9 adds a per-severity scan summary and paginated findings that can be
+filtered by severity, for example
+`GET /api/scans/{scanId}/findings?severity=HIGH&page=0&size=20`
+(`size` is capped at 100).
+
 ## Security Rules
 
 | Rule | Severity | Checks | OWASP API Top 10 |
@@ -64,7 +69,8 @@ DELETE /api/projects/{id}
 POST   /api/projects/{projectId}/scans/upload
 GET    /api/projects/{projectId}/scans
 GET    /api/scans/{scanId}
-GET    /api/scans/{scanId}/findings
+GET    /api/scans/{scanId}/findings?severity=&page=&size=
+GET    /api/scans/{scanId}/summary
 ```
 
 ## Planned Direction
