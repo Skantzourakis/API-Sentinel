@@ -58,6 +58,12 @@ export interface ScanComparison {
   unchangedFindings: number
 }
 
+export interface User {
+  id: number
+  email: string
+  createdAt: string
+}
+
 export interface TokenResponse {
   accessToken: string
   tokenType: string

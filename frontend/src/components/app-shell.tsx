@@ -1,3 +1,4 @@
+import { LogOut } from 'lucide-react'
 import { Link, NavLink, Outlet } from 'react-router'
 import { Logo } from '@/components/logo'
 import { RiskMark } from '@/components/severity'
@@ -52,19 +53,29 @@ function ProjectNav() {
   )
 }
 
-function SignOut({ className }: { className?: string }) {
+function SignOutButton() {
   const { logout } = useAuth()
   return (
     <button
       type="button"
       onClick={logout}
-      className={cn(
-        'shrink-0 rounded-sm text-sm text-sidebar-muted transition-colors hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:outline-none',
-        className,
-      )}
+      aria-label="Sign out"
+      title="Sign out"
+      className="grid size-8 shrink-0 place-items-center rounded-md text-sidebar-muted transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:outline-none"
     >
-      Sign out
+      <LogOut className="size-4" />
     </button>
+  )
+}
+
+function Avatar({ email, className }: { email: string | undefined; className?: string }) {
+  return (
+    <span
+      aria-hidden
+      className={cn('grid size-7 shrink-0 place-items-center rounded-full bg-sidebar-accent text-xs font-semibold uppercase', className)}
+    >
+      {email?.charAt(0) ?? '?'}
+    </span>
   )
 }
 
@@ -79,11 +90,14 @@ export function AppShell() {
             <Logo />
           </Link>
           {/* On small screens the sidebar collapses into this bar. */}
-          <div className="flex items-center gap-5 md:hidden">
+          <div className="flex items-center gap-3 md:hidden">
             <Link to="/projects" className="text-sm text-sidebar-foreground/85 hover:text-sidebar-accent-foreground">
               Projects
             </Link>
-            <SignOut />
+            <Link to="/profile" aria-label="Profile" className="rounded-full focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:outline-none">
+              <Avatar email={session?.email} />
+            </Link>
+            <SignOutButton />
           </div>
         </div>
 
@@ -108,11 +122,21 @@ export function AppShell() {
           <ProjectNav />
         </nav>
 
-        <div className="hidden flex-col gap-1.5 border-t border-sidebar-border px-5 py-4 md:flex">
-          <span className="truncate text-sm text-sidebar-foreground/80" title={session?.email}>
-            {session?.email}
-          </span>
-          <SignOut className="self-start" />
+        <div className="hidden items-center gap-1 border-t border-sidebar-border px-2 py-3 md:flex">
+          <NavLink
+            to="/profile"
+            title="Your profile"
+            className={({ isActive }) =>
+              cn(
+                'flex min-w-0 flex-1 items-center gap-3 rounded-md px-2 py-1.5 transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:outline-none',
+                isActive ? 'bg-sidebar-accent text-sidebar-accent-foreground' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground',
+              )
+            }
+          >
+            <Avatar email={session?.email} />
+            <span className="truncate text-sm">{session?.email}</span>
+          </NavLink>
+          <SignOutButton />
         </div>
       </aside>
 

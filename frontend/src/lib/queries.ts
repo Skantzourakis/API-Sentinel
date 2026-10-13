@@ -1,9 +1,13 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError, api } from '@/lib/api'
 import type { Severity } from '@/lib/severity'
-import type { Finding, Page, Project, Scan, ScanComparison } from '@/lib/types'
+import type { Finding, Page, Project, Scan, ScanComparison, User } from '@/lib/types'
 
 export const FINDINGS_PAGE_SIZE = 20
+
+export function useCurrentUser() {
+  return useQuery({ queryKey: ['users', 'me'], queryFn: () => api<User>('/users/me') })
+}
 
 export function useProjects() {
   return useQuery({ queryKey: ['projects'], queryFn: () => api<Project[]>('/projects') })

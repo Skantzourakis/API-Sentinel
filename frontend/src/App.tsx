@@ -4,6 +4,7 @@ import { ButtonLink } from '@/components/button-link'
 import { EmptyState, Page } from '@/components/page'
 import { useAuth } from '@/lib/auth'
 import { AuthPage } from '@/pages/auth-page'
+import { ProfilePage } from '@/pages/profile-page'
 import { ProjectPage } from '@/pages/project-page'
 import { ProjectsPage } from '@/pages/projects-page'
 import { ScanPage } from '@/pages/scan-page'
@@ -38,6 +39,7 @@ export const router = createBrowserRouter([
           { path: '/projects', element: <ProjectsPage /> },
           { path: '/projects/:projectId', element: <ProjectPage /> },
           { path: '/scans/:scanId', element: <ScanPage /> },
+          { path: '/profile', element: <ProfilePage /> },
           { path: '*', element: <NotFound /> },
         ],
       },

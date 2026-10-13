@@ -6,6 +6,8 @@ import type { TokenResponse } from '@/lib/types'
 interface Session {
   token: string
   email: string
+  // Milliseconds since epoch, from the token's exp claim.
+  expiresAt: number | null
 }
 
 interface AuthContextValue {
@@ -26,7 +28,7 @@ function sessionFromToken(token: string | null): Session | null {
       setToken(null)
       return null
     }
-    return { token, email: String(payload.email ?? '') }
+    return { token, email: String(payload.email ?? ''), expiresAt: typeof payload.exp === 'number' ? payload.exp * 1000 : null }
   } catch {
     setToken(null)
     return null
