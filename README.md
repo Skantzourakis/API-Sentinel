@@ -1,5 +1,7 @@
 # API Sentinel
 
+[![CI](https://github.com/Skantzourakis/API-Sentinel/actions/workflows/ci.yml/badge.svg)](https://github.com/Skantzourakis/API-Sentinel/actions/workflows/ci.yml)
+
 API Sentinel is a Spring Boot backend for static API security analysis.
 
 The goal is to learn and demonstrate real backend engineering through a practical AppSec project:
