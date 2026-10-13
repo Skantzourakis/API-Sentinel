@@ -4,6 +4,7 @@ import com.apisentinel.dto.PageResponse;
 import com.apisentinel.dto.finding.FindingResponse;
 import com.apisentinel.dto.scan.ApiScanResponse;
 import com.apisentinel.dto.scan.ScanSummaryResponse;
+import com.apisentinel.dto.scan.SeverityCounts;
 import com.apisentinel.entity.ApiScan;
 import com.apisentinel.entity.Finding;
 import com.apisentinel.entity.FindingSeverity;
@@ -14,6 +15,7 @@ import com.apisentinel.exception.ResourceNotFoundException;
 import com.apisentinel.repository.ApiScanRepository;
 import com.apisentinel.repository.FindingRepository;
 import com.apisentinel.repository.ProjectRepository;
+import com.apisentinel.repository.ScanSeverityCount;
 import com.apisentinel.repository.SeverityCount;
 import com.apisentinel.scanner.OpenApiParserService;
 import com.apisentinel.scanner.SecurityScanner;
@@ -28,7 +30,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.util.LinkedHashMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -85,7 +87,10 @@ public class ScanService {
         scan.setCompletedAt(Instant.now());
 
         findingRepository.saveAll(findings);
-        return ApiScanResponse.from(scan);
+
+        Map<FindingSeverity, Long> findingsBySeverity = SeverityCounts.zeroed();
+        findings.forEach(finding -> findingsBySeverity.merge(finding.getSeverity(), 1L, Long::sum));
+        return ApiScanResponse.from(scan, findingsBySeverity);
     }
 
     @Transactional(readOnly = true)
@@ -94,15 +99,21 @@ public class ScanService {
             throw new ResourceNotFoundException("Project with id " + projectId + " was not found");
         }
 
+        Map<Long, Map<FindingSeverity, Long>> countsByScan = new HashMap<>();
+        for (ScanSeverityCount row : findingRepository.countBySeverityForProject(projectId)) {
+            countsByScan.computeIfAbsent(row.getScanId(), id -> SeverityCounts.zeroed()).put(row.getSeverity(), row.getCount());
+        }
+
         return apiScanRepository.findByProjectIdOrderByCreatedAtDesc(projectId)
                 .stream()
-                .map(ApiScanResponse::from)
+                .map(scan -> ApiScanResponse.from(scan, countsByScan.getOrDefault(scan.getId(), SeverityCounts.zeroed())))
                 .toList();
     }
 
     @Transactional(readOnly = true)
     public ApiScanResponse getScan(Long ownerId, Long scanId) {
-        return ApiScanResponse.from(findScan(ownerId, scanId));
+        ApiScan scan = findScan(ownerId, scanId);
+        return ApiScanResponse.from(scan, countBySeverity(scanId));
     }
 
     @Transactional(readOnly = true)
@@ -130,16 +141,15 @@ public class ScanService {
     public ScanSummaryResponse getScanSummary(Long ownerId, Long scanId) {
         ApiScan scan = findScan(ownerId, scanId);
 
-        // Start every severity at 0 so missing ones still appear, most severe first.
-        Map<FindingSeverity, Long> findingsBySeverity = new LinkedHashMap<>();
-        for (FindingSeverity severity : List.of(FindingSeverity.CRITICAL, FindingSeverity.HIGH, FindingSeverity.MEDIUM, FindingSeverity.LOW)) {
-            findingsBySeverity.put(severity, 0L);
-        }
+        return ScanSummaryResponse.from(scan, countBySeverity(scanId));
+    }
+
+    private Map<FindingSeverity, Long> countBySeverity(Long scanId) {
+        Map<FindingSeverity, Long> findingsBySeverity = SeverityCounts.zeroed();
         for (SeverityCount row : findingRepository.countBySeverityForScan(scanId)) {
             findingsBySeverity.put(row.getSeverity(), row.getCount());
         }
-
-        return ScanSummaryResponse.from(scan, findingsBySeverity);
+        return findingsBySeverity;
     }
 
     // Scans of other users' projects are reported as not found.

@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 
 public interface FindingRepository extends JpaRepository<Finding, Long> {
@@ -37,6 +38,23 @@ public interface FindingRepository extends JpaRepository<Finding, Long> {
             GROUP BY f.severity
             """)
     List<SeverityCount> countBySeverityForScan(@Param("scanId") Long scanId);
+
+    // One query for all scans of a project instead of one query per scan.
+    @Query("""
+            SELECT f.scan.id AS scanId, f.severity AS severity, COUNT(f) AS count
+            FROM Finding f
+            WHERE f.scan.project.id = :projectId
+            GROUP BY f.scan.id, f.severity
+            """)
+    List<ScanSeverityCount> countBySeverityForProject(@Param("projectId") Long projectId);
+
+    @Query("""
+            SELECT f.scan.id AS scanId, f.severity AS severity, COUNT(f) AS count
+            FROM Finding f
+            WHERE f.scan.id IN :scanIds
+            GROUP BY f.scan.id, f.severity
+            """)
+    List<ScanSeverityCount> countBySeverityForScans(@Param("scanIds") Collection<Long> scanIds);
 
     void deleteByScanProjectId(Long projectId);
 }

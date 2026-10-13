@@ -1,9 +1,11 @@
 package com.apisentinel.dto.scan;
 
 import com.apisentinel.entity.ApiScan;
+import com.apisentinel.entity.FindingSeverity;
 import com.apisentinel.entity.ScanStatus;
 
 import java.time.Instant;
+import java.util.Map;
 
 public class ApiScanResponse {
 
@@ -15,8 +17,9 @@ public class ApiScanResponse {
     private String openApiFileName;
     private Instant createdAt;
     private Instant completedAt;
+    private Map<FindingSeverity, Long> findingsBySeverity;
 
-    public static ApiScanResponse from(ApiScan scan) {
+    public static ApiScanResponse from(ApiScan scan, Map<FindingSeverity, Long> findingsBySeverity) {
         ApiScanResponse response = new ApiScanResponse();
         response.id = scan.getId();
         response.projectId = scan.getProject().getId();
@@ -26,6 +29,7 @@ public class ApiScanResponse {
         response.openApiFileName = scan.getOpenApiFileName();
         response.createdAt = scan.getCreatedAt();
         response.completedAt = scan.getCompletedAt();
+        response.findingsBySeverity = findingsBySeverity;
         return response;
     }
 
@@ -59,5 +63,9 @@ public class ApiScanResponse {
 
     public Instant getCompletedAt() {
         return completedAt;
+    }
+
+    public Map<FindingSeverity, Long> getFindingsBySeverity() {
+        return findingsBySeverity;
     }
 }

@@ -119,7 +119,19 @@ class ApiIntegrationTest {
     @Test
     void scanningTheSampleProducesFindingsSummaryAndPages() throws Exception {
         String token = registerAndLogin();
-        long scanId = uploadSample(token, createProject(token, "Sample"));
+        long projectId = createProject(token, "Sample");
+        long scanId = uploadSample(token, projectId);
+
+        // The scan list carries per-severity counts so clients can draw each scan's severity bar.
+        mockMvc.perform(get("/api/projects/{id}/scans", projectId).header("Authorization", token))
+                .andExpect(jsonPath("$[0].findingsBySeverity.HIGH").value(6))
+                .andExpect(jsonPath("$[0].findingsBySeverity.LOW").value(4));
+
+        // The project list summarises each project's latest scan.
+        mockMvc.perform(get("/api/projects").header("Authorization", token))
+                .andExpect(jsonPath("$[0].scanCount").value(1))
+                .andExpect(jsonPath("$[0].latestScan.id").value(scanId))
+                .andExpect(jsonPath("$[0].latestScan.findingsBySeverity.CRITICAL").value(1));
 
         mockMvc.perform(get("/api/scans/{id}/summary", scanId).header("Authorization", token))
                 .andExpect(status().isOk())

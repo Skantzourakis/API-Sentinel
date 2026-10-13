@@ -1,5 +1,6 @@
 package com.apisentinel.dto.project;
 
+import com.apisentinel.dto.scan.ApiScanResponse;
 import com.apisentinel.entity.Project;
 
 import java.time.Instant;
@@ -13,14 +14,19 @@ public class ProjectResponse {
     private String description;
     private Instant createdAt;
     private Instant updatedAt;
+    private long scanCount;
+    // Null until the first file is uploaded.
+    private ApiScanResponse latestScan;
 
-    public static ProjectResponse from(Project project) {
+    public static ProjectResponse from(Project project, long scanCount, ApiScanResponse latestScan) {
         ProjectResponse response = new ProjectResponse();
         response.id = project.getId();
         response.name = project.getName();
         response.description = project.getDescription();
         response.createdAt = project.getCreatedAt();
         response.updatedAt = project.getUpdatedAt();
+        response.scanCount = scanCount;
+        response.latestScan = latestScan;
         return response;
     }
 
@@ -42,5 +48,13 @@ public class ProjectResponse {
 
     public Instant getUpdatedAt() {
         return updatedAt;
+    }
+
+    public long getScanCount() {
+        return scanCount;
+    }
+
+    public ApiScanResponse getLatestScan() {
+        return latestScan;
     }
 }
