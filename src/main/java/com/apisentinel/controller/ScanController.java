@@ -2,6 +2,7 @@ package com.apisentinel.controller;
 
 import com.apisentinel.dto.finding.FindingResponse;
 import com.apisentinel.dto.scan.ApiScanResponse;
+import com.apisentinel.dto.scan.ScanSummaryResponse;
 import com.apisentinel.service.ScanService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -48,5 +49,10 @@ public class ScanController {
     @GetMapping("/scans/{scanId}/findings")
     public List<FindingResponse> getFindingsForScan(@PathVariable Long scanId) {
         return scanService.getFindingsForScan(scanId);
+    }
+
+    @GetMapping("/scans/{scanId}/summary")
+    public ScanSummaryResponse getScanSummary(@PathVariable Long scanId) {
+        return scanService.getScanSummary(scanId);
     }
 }

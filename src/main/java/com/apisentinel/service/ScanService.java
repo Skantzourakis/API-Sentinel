@@ -2,6 +2,7 @@ package com.apisentinel.service;
 
 import com.apisentinel.dto.finding.FindingResponse;
 import com.apisentinel.dto.scan.ApiScanResponse;
+import com.apisentinel.dto.scan.ScanSummaryResponse;
 import com.apisentinel.entity.ApiScan;
 import com.apisentinel.entity.Finding;
 import com.apisentinel.entity.FindingSeverity;
@@ -12,6 +13,7 @@ import com.apisentinel.exception.ResourceNotFoundException;
 import com.apisentinel.repository.ApiScanRepository;
 import com.apisentinel.repository.FindingRepository;
 import com.apisentinel.repository.ProjectRepository;
+import com.apisentinel.repository.SeverityCount;
 import com.apisentinel.scanner.OpenApiParserService;
 import com.apisentinel.scanner.SecurityScanner;
 import com.apisentinel.scanner.model.OpenApiParseResult;
@@ -22,8 +24,10 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 @Service
@@ -108,6 +112,23 @@ public class ScanService {
                 .stream()
                 .map(FindingResponse::from)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public ScanSummaryResponse getScanSummary(Long scanId) {
+        ApiScan scan = apiScanRepository.findById(scanId)
+                .orElseThrow(() -> new ResourceNotFoundException("Scan with id " + scanId + " was not found"));
+
+        // Start every severity at 0 so missing ones still appear, most severe first.
+        Map<FindingSeverity, Long> findingsBySeverity = new LinkedHashMap<>();
+        for (FindingSeverity severity : List.of(FindingSeverity.CRITICAL, FindingSeverity.HIGH, FindingSeverity.MEDIUM, FindingSeverity.LOW)) {
+            findingsBySeverity.put(severity, 0L);
+        }
+        for (SeverityCount row : findingRepository.countBySeverityForScan(scanId)) {
+            findingsBySeverity.put(row.getSeverity(), row.getCount());
+        }
+
+        return ScanSummaryResponse.from(scan, findingsBySeverity);
     }
 
     private Project findProject(Long projectId) {
