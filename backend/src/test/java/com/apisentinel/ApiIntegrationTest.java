@@ -151,7 +151,7 @@ class ApiIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalFindings").value(14))
                 .andExpect(jsonPath("$.findingsBySeverity.CRITICAL").value(1))
-                .andExpect(jsonPath("$.riskScore").value(100));
+                .andExpect(jsonPath("$.riskScore").value(96));
 
         // Most severe first, five per page.
         mockMvc.perform(get("/api/scans/{id}/findings", scanId).param("size", "5").header("Authorization", token))

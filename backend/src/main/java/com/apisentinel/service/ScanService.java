@@ -18,6 +18,7 @@ import com.apisentinel.repository.ProjectRepository;
 import com.apisentinel.repository.ScanSeverityCount;
 import com.apisentinel.repository.SeverityCount;
 import com.apisentinel.scanner.OpenApiParserService;
+import com.apisentinel.scanner.RiskScore;
 import com.apisentinel.scanner.SecurityScanner;
 import com.apisentinel.scanner.model.OpenApiParseResult;
 import org.springframework.data.domain.Page;
@@ -82,7 +83,7 @@ public class ScanService {
         scan.setEndpointCount(parseResult.getEndpointCount());
 
         List<Finding> findings = securityScanner.scan(scan, parseResult);
-        scan.setRiskScore(calculateRiskScore(findings));
+        scan.setRiskScore(RiskScore.calculate(findings.stream().map(Finding::getSeverity).toList()));
         scan.setStatus(ScanStatus.COMPLETED);
         scan.setCompletedAt(Instant.now());
 
@@ -196,22 +197,5 @@ public class ScanService {
         } catch (IOException e) {
             throw new BadRequestException("Could not read uploaded OpenAPI file");
         }
-    }
-
-    private int calculateRiskScore(List<Finding> findings) {
-        int score = findings.stream()
-                .map(Finding::getSeverity)
-                .mapToInt(this::severityWeight)
-                .sum();
-        return Math.min(score, 100);
-    }
-
-    private int severityWeight(FindingSeverity severity) {
-        return switch (severity) {
-            case LOW -> 5;
-            case MEDIUM -> 15;
-            case HIGH -> 30;
-            case CRITICAL -> 45;
-        };
     }
 }
