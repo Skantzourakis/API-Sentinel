@@ -53,6 +53,14 @@ public class AuthService {
         return new TokenResponse(jwtService.issueToken(user), jwtService.getExpirationSeconds());
     }
 
+    @Transactional(readOnly = true)
+    public UserResponse getCurrentUser(Long userId) {
+        // A valid token whose user was removed is treated like a missing login.
+        return userAccountRepository.findById(userId)
+                .map(UserResponse::from)
+                .orElseThrow(() -> new UnauthorizedException("Account no longer exists"));
+    }
+
     private String normalizeEmail(String email) {
         return email.trim().toLowerCase(Locale.ROOT);
     }

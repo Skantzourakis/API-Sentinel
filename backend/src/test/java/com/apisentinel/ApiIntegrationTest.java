@@ -16,6 +16,7 @@ import java.nio.file.Path;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
@@ -104,6 +105,19 @@ class ApiIntegrationTest {
 
         mockMvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON).content(credentials("not-an-email", "short")))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void currentUserEndpointReturnsTheSignedInAccount() throws Exception {
+        String token = registerAndLogin();
+
+        mockMvc.perform(get("/api/users/me").header("Authorization", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value(startsWith("user-")))
+                .andExpect(jsonPath("$.createdAt").exists())
+                .andExpect(jsonPath("$.password").doesNotExist());
+
+        mockMvc.perform(get("/api/users/me")).andExpect(status().isUnauthorized());
     }
 
     @Test

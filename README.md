@@ -134,6 +134,7 @@ All endpoints except `/api/auth/**` require `Authorization: Bearer <token>`.
 ```http
 POST   /api/auth/register
 POST   /api/auth/login
+GET    /api/users/me
 
 POST   /api/projects
 GET    /api/projects
