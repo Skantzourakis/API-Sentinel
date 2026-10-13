@@ -6,8 +6,11 @@ on:
   pull_request:
 
 jobs:
-  build:
+  backend:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
 
     steps:
       - name: Check out the code
@@ -19,9 +22,10 @@ jobs:
           distribution: temurin
           java-version: "21"
           cache: maven
+          cache-dependency-path: backend/pom.xml
 
       - name: Build and run tests
         run: mvn -B verify
 
       - name: Build Docker image
-        run: docker build -t api-sentinel .
+        run: docker build -t api-sentinel-backend .

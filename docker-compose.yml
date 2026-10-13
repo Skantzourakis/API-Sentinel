@@ -19,7 +19,7 @@ services:
   # Only started with "docker compose --profile app up", so local development
   # with "docker compose up -d" still starts just the database.
   app:
-    build: .
+    build: ./backend
     container_name: api-sentinel-app
     profiles: ["app"]
     depends_on:

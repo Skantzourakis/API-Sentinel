@@ -54,7 +54,7 @@ flowchart LR
   so adding a rule means adding one class.
 
 ```text
-src/main/java/com/apisentinel
+backend/src/main/java/com/apisentinel
 ├── controller   REST endpoints
 ├── service      business logic
 ├── repository   Spring Data JPA repositories
@@ -91,7 +91,7 @@ curl -X POST localhost:8080/api/auth/login -H "Content-Type: application/json" \
 curl -X POST localhost:8080/api/projects -H "Authorization: Bearer <token>" \
      -H "Content-Type: application/json" -d '{"name":"Sample Banking API"}'
 curl -X POST localhost:8080/api/projects/1/scans/upload -H "Authorization: Bearer <token>" \
-     -F "file=@sample-openapi.yaml"
+     -F "file=@backend/sample-openapi.yaml"
 
 # 3. Read the results
 curl localhost:8080/api/scans/1/summary -H "Authorization: Bearer <token>"
@@ -108,7 +108,7 @@ curl localhost:8080/api/scans/1/summary -H "Authorization: Bearer <token>"
 }
 ```
 
-`sample-openapi.yaml` triggers every rule and contains one endpoint
+`backend/sample-openapi.yaml` triggers every rule and contains one endpoint
 (`GET /transactions`) that passes all of them.
 
 ## Security Rules
@@ -184,6 +184,7 @@ rather than proof of a vulnerability.
 ## Testing
 
 ```bash
+cd backend
 mvn verify
 ```
 
@@ -200,6 +201,7 @@ Start only the database, then run the application from the IDE or Maven:
 
 ```bash
 docker compose up -d
+cd backend
 mvn spring-boot:run
 ```
 
