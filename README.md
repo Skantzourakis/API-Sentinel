@@ -2,72 +2,114 @@
 
 [![CI](https://github.com/Skantzourakis/API-Sentinel/actions/workflows/ci.yml/badge.svg)](https://github.com/Skantzourakis/API-Sentinel/actions/workflows/ci.yml)
 
-API Sentinel is a Spring Boot backend for static API security analysis.
+**Static security analysis for REST APIs.** Upload an OpenAPI (Swagger) specification
+and API Sentinel reports security weaknesses mapped to the
+[OWASP API Security Top 10](https://owasp.org/API-Security/), with a risk score,
+severity summary and a comparison against the previous scan.
 
-The goal is to learn and demonstrate real backend engineering through a practical AppSec project:
+The scanner reads only the specification, so it never sends traffic to the API
+being analysed.
 
-- Spring Boot REST APIs
-- DTOs, validation, services, repositories, and entities
-- PostgreSQL persistence
-- Clean milestone-based development
-- Later: OpenAPI parsing and deterministic security rules
+## Features
 
-## Current Milestone
+- **8 deterministic security rules** covering authentication, object-level
+  authorization, sensitive data in URLs, pagination, transport security and
+  error contracts
+- **Risk score and severity summary** for every scan
+- **Paginated, filterable findings**, most severe first
+- **Scan comparison**: new findings, resolved findings and risk score change
+  between two versions of a specification
+- **Scan history** per project, including scans of invalid files recorded as `FAILED`
+- **User accounts with JWT authentication**; each user only sees their own data
+- **Swagger UI** for exploring and trying the API
 
-Milestone 1 implements Project CRUD.
+## Tech Stack
 
-Milestone 2 adds the initial ApiScan model connected to Project. This does not
-parse OpenAPI files yet. It only stores scan records so the database structure
-is ready for the next milestone.
+| Area | Technology |
+|------|------------|
+| Language / framework | Java 21, Spring Boot 3.5 (Web, Data JPA, Validation) |
+| Security | Spring Security, OAuth2 Resource Server (JWT, HS256), BCrypt |
+| Database | PostgreSQL 16, Flyway migrations, Hibernate |
+| OpenAPI | swagger-parser (input), springdoc-openapi (own docs) |
+| Testing | JUnit 5, AssertJ, MockMvc, H2 |
+| Delivery | Docker (multi-stage build), Docker Compose, GitHub Actions |
 
-Milestone 3 adds OpenAPI file upload validation for `.json`, `.yaml`, and `.yml`
-files.
+## Architecture
 
-Milestone 4 parses uploaded OpenAPI files and stores how many API operations
-were found in the scan record.
-
-Milestone 5 creates initial security findings from deterministic rules and
-stores them per scan.
-
-Milestone 6 fixes project deletion so scans and findings are removed with the
-project, respects operation-level `security: []` overrides when parsing, and
-records scans of invalid OpenAPI files as `FAILED`.
-
-Milestone 7 manages the database schema with Flyway migrations
-(`src/main/resources/db/migration`). Hibernate only validates the schema.
-
-Milestone 8 extends the rule set to eight OWASP-inspired security rules.
-
-Milestone 9 adds a per-severity scan summary and paginated findings that can be
-filtered by severity, for example
-`GET /api/scans/{scanId}/findings?severity=HIGH&page=0&size=20`
-(`size` is capped at 100).
-
-Milestone 10 compares a scan with the previous completed scan of the same
-project (or any `baseScanId`) and reports new findings, resolved findings and
-the change in risk score.
-
-Milestone 11 adds user accounts with JWT authentication. Every endpoint except
-`/api/auth/**` requires a bearer token, and users only see their own projects,
-scans and findings. Another user's resources return `404`, so their existence is
-not revealed.
-
-## Authentication
-
-```http
-POST /api/auth/register   {"email": "...", "password": "..."}
-POST /api/auth/login      {"email": "...", "password": "..."}  -> {"accessToken": "...", "tokenType": "Bearer", "expiresIn": 3600}
+```mermaid
+flowchart LR
+    Client -->|HTTP + JWT| Controllers
+    Controllers --> Services
+    Services --> Repositories --> DB[(PostgreSQL)]
+    Services --> Parser[OpenAPI parser]
+    Parser --> Scanner[Security scanner]
+    Scanner --> Rules[8 security rules]
 ```
 
-Send the token on every other request:
+- **Controllers** handle HTTP and map requests to DTOs; they contain no business logic.
+- **Services** hold the logic and transaction boundaries.
+- **Repositories** use Spring Data JPA, with JPQL for aggregation and ordering.
+- **Scanner** is independent of HTTP and the database. Each rule is a Spring bean
+  implementing `SecurityRule` (per endpoint) or `ApiSpecRule` (whole specification),
+  so adding a rule means adding one class.
 
-```http
-Authorization: Bearer <accessToken>
+```text
+src/main/java/com/apisentinel
+├── controller   REST endpoints
+├── service      business logic
+├── repository   Spring Data JPA repositories
+├── entity       JPA entities
+├── dto          request and response objects
+├── scanner      OpenAPI parser, scanner and rules
+├── security     Spring Security and JWT configuration
+├── config       OpenAPI (Swagger) configuration
+└── exception    error types and global error handling
 ```
 
-Passwords are stored as BCrypt hashes. Tokens are signed with HS256 using
-`JWT_SECRET` (at least 32 characters); the default in `application.properties`
-is for local development only.
+## Quick Start
+
+Requires Docker.
+
+```bash
+docker compose --profile app up -d --build
+```
+
+- API: `http://localhost:8080`
+- Swagger UI: `http://localhost:8080/swagger-ui.html`
+
+### Try it
+
+```bash
+# 1. Create an account and log in
+curl -X POST localhost:8080/api/auth/register -H "Content-Type: application/json" \
+     -d '{"email":"demo@example.com","password":"supersecret1"}'
+curl -X POST localhost:8080/api/auth/login -H "Content-Type: application/json" \
+     -d '{"email":"demo@example.com","password":"supersecret1"}'
+# -> {"accessToken":"<token>","tokenType":"Bearer","expiresIn":3600}
+
+# 2. Create a project and scan the included sample specification
+curl -X POST localhost:8080/api/projects -H "Authorization: Bearer <token>" \
+     -H "Content-Type: application/json" -d '{"name":"Sample Banking API"}'
+curl -X POST localhost:8080/api/projects/1/scans/upload -H "Authorization: Bearer <token>" \
+     -F "file=@sample-openapi.yaml"
+
+# 3. Read the results
+curl localhost:8080/api/scans/1/summary -H "Authorization: Bearer <token>"
+```
+
+```json
+{
+  "scanId": 1,
+  "status": "COMPLETED",
+  "riskScore": 100,
+  "endpointCount": 6,
+  "totalFindings": 14,
+  "findingsBySeverity": { "CRITICAL": 1, "HIGH": 6, "MEDIUM": 3, "LOW": 4 }
+}
+```
+
+`sample-openapi.yaml` triggers every rule and contains one endpoint
+(`GET /transactions`) that passes all of them.
 
 ## Security Rules
 
@@ -82,10 +124,12 @@ is for local development only.
 | `MISSING_REQUEST_BODY_SCHEMA` | MEDIUM | Write endpoint without request body schema | API8 Security Misconfiguration |
 | `MISSING_ERROR_RESPONSES` | LOW | Operation documents no 4xx or default response | API8 Security Misconfiguration |
 
-`sample-openapi.yaml` triggers every rule and also contains one endpoint
-(`GET /transactions`) that passes all of them.
+The parser follows the OpenAPI rule that operation-level `security` overrides the
+global setting, so an operation declaring `security: []` is treated as public.
 
-Implemented endpoints:
+## API
+
+All endpoints except `/api/auth/**` require `Authorization: Bearer <token>`.
 
 ```http
 POST   /api/auth/register
@@ -105,50 +149,88 @@ GET    /api/scans/{scanId}/summary
 GET    /api/scans/{scanId}/comparison?baseScanId=
 ```
 
-## Planned Direction
+Errors use one JSON shape:
 
-Future milestones will add:
-
-1. ApiScan model connected to Project
-2. OpenAPI JSON/YAML upload
-3. OpenAPI parser
-4. OWASP-inspired deterministic security rules
-5. Findings and risk scoring
-6. Scan history and reports
-7. Optional AI explanations after the scanner works without AI
-
-AI will not decide whether something is vulnerable. Rules create findings; AI may later explain findings in a developer-friendly way.
-
-## Local Database
-
-Create a PostgreSQL database named `api_sentinel`, or override the connection with environment variables.
-
-Default configuration:
-
-```text
-DB_URL=jdbc:postgresql://localhost:5432/api_sentinel
-DB_USERNAME=postgres
-DB_PASSWORD=postgres
+```json
+{ "status": 404, "error": "Resource not found", "details": ["Scan with id 42 was not found"], "timestamp": "..." }
 ```
 
-## Run
+## Design Decisions
 
-### Everything with Docker
+- **Deterministic rules, no AI verdicts.** Findings are reproducible and explainable.
+  AI may later be used to explain findings, never to decide them.
+- **Ownership returns `404`, not `403`.** Another user's project looks exactly like a
+  missing one, so ids cannot be probed (protection against BOLA, the issue the
+  scanner itself looks for).
+- **Stateless JWT authentication.** No server sessions; the token subject is the
+  user id. Passwords are stored only as BCrypt hashes, and login gives the same
+  error for an unknown email and a wrong password.
+- **The API follows its own rules.** Findings are paginated with a maximum page
+  size of 100, and aggregation (`GROUP BY` per severity) runs in the database.
+- **Flyway owns the schema.** Hibernate only validates it (`ddl-auto=validate`),
+  so every schema change is a versioned SQL migration.
+- **DTOs at the boundary.** Entities are never serialized directly, so internal
+  fields cannot leak and clients cannot set fields such as ids (mass assignment).
 
-Starts PostgreSQL and the application (the image is built from the `Dockerfile`):
+## Scanning Itself
 
-```powershell
-docker compose --profile app up -d --build
+API Sentinel publishes its own specification at `/v3/api-docs`, so it can scan
+itself. Doing so surfaced real gaps (undocumented error responses, an unpaginated
+project list) as well as expected false positives, such as the intentionally
+public login endpoint being reported as an unauthenticated write. Rules are
+heuristics over the specification, so results are a starting point for review
+rather than proof of a vulnerability.
+
+## Testing
+
+```bash
+mvn verify
 ```
 
-### Local development
+- **Unit tests** for every security rule and the OpenAPI parser
+- **Integration tests** (MockMvc + H2, running all Flyway migrations) for
+  registration and login, token checks, the full scan flow, pagination limits,
+  scan comparison, project deletion and cross-user isolation
 
-Start only the database with Docker and run the application from the IDE or Maven:
+GitHub Actions runs the tests and builds the Docker image on every push.
 
-```powershell
+## Local Development
+
+Start only the database, then run the application from the IDE or Maven:
+
+```bash
 docker compose up -d
 mvn spring-boot:run
 ```
 
-The API starts on `http://localhost:8080` and Swagger UI on
-`http://localhost:8080/swagger-ui.html`.
+Configuration is read from environment variables, with local defaults:
+
+| Variable | Default |
+|----------|---------|
+| `DB_URL` | `jdbc:postgresql://localhost:5432/api_sentinel` |
+| `DB_USERNAME` / `DB_PASSWORD` | `postgres` / `postgres` |
+| `JWT_SECRET` | development-only value; set at least 32 characters in any real environment |
+
+## Roadmap
+
+- React frontend (dashboard for projects, scans and findings)
+- Rule refinements to reduce false positives (for example, recognising login
+  endpoints and non-list responses)
+- Optional AI-generated explanations of findings
+
+## Development History
+
+Built in milestones, one feature per commit:
+
+1. Project CRUD
+2. Scan model
+3. OpenAPI upload and validation
+4. OpenAPI parsing
+5. First security rules and findings
+6. Bug fixes: cascading deletes, `security: []` overrides, `FAILED` scans
+7. Flyway migrations
+8. Eight OWASP-mapped rules
+9. Severity summary, pagination and filtering
+10. Scan comparison
+11. Users, JWT authentication and per-user data isolation
+12. Swagger UI, Docker, CI and tests
