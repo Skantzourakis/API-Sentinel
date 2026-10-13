@@ -1,4 +1,4 @@
-﻿services:
+services:
   postgres:
     image: postgres:16
     container_name: api-sentinel-postgres
@@ -10,6 +10,28 @@
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d api_sentinel"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Only started with "docker compose --profile app up", so local development
+  # with "docker compose up -d" still starts just the database.
+  app:
+    build: .
+    container_name: api-sentinel-app
+    profiles: ["app"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/api_sentinel
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      JWT_SECRET: ${JWT_SECRET:-local-development-secret-change-me-0123456789}
+    ports:
+      - "8080:8080"
 
 volumes:
   postgres_data:

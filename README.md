@@ -131,14 +131,22 @@ DB_PASSWORD=postgres
 
 ## Run
 
-Maven is required to run from the terminal:
+### Everything with Docker
+
+Starts PostgreSQL and the application (the image is built from the `Dockerfile`):
 
 ```powershell
+docker compose --profile app up -d --build
+```
+
+### Local development
+
+Start only the database with Docker and run the application from the IDE or Maven:
+
+```powershell
+docker compose up -d
 mvn spring-boot:run
 ```
 
-The API will start on:
-
-```text
-http://localhost:8080
-```
+The API starts on `http://localhost:8080` and Swagger UI on
+`http://localhost:8080/swagger-ui.html`.
