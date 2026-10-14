@@ -9,6 +9,7 @@ import com.apisentinel.exception.ConflictException;
 import com.apisentinel.exception.UnauthorizedException;
 import com.apisentinel.repository.UserAccountRepository;
 import com.apisentinel.security.JwtService;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,7 +41,13 @@ public class AuthService {
         }
 
         UserAccount user = new UserAccount(email, passwordEncoder.encode(request.getPassword()));
-        return UserResponse.from(userAccountRepository.save(user));
+        try {
+            return UserResponse.from(userAccountRepository.saveAndFlush(user));
+        } catch (DataIntegrityViolationException e) {
+            // Two registrations with the same email can both pass the check above at the same moment;
+            // the unique index on email stops the second one, which gets the same answer.
+            throw new ConflictException("An account with this email already exists");
+        }
     }
 
     @Transactional(readOnly = true)
