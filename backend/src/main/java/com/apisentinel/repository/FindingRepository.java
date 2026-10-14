@@ -5,6 +5,7 @@ import com.apisentinel.entity.FindingSeverity;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -56,5 +57,8 @@ public interface FindingRepository extends JpaRepository<Finding, Long> {
             """)
     List<ScanSeverityCount> countBySeverityForScans(@Param("scanIds") Collection<Long> scanIds);
 
-    void deleteByScanProjectId(Long projectId);
+    // One DELETE statement. A derived deleteBy... method would load every finding and remove them one at a time.
+    @Modifying
+    @Query("DELETE FROM Finding f WHERE f.scan.id IN (SELECT s.id FROM ApiScan s WHERE s.project.id = :projectId)")
+    void deleteByScanProjectId(@Param("projectId") Long projectId);
 }

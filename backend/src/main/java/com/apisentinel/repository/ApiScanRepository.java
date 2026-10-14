@@ -3,6 +3,7 @@ package com.apisentinel.repository;
 import com.apisentinel.entity.ApiScan;
 import com.apisentinel.entity.ScanStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -20,7 +21,9 @@ public interface ApiScanRepository extends JpaRepository<ApiScan, Long> {
     // Ids are generated in insertion order, so the highest smaller id is the previous scan.
     Optional<ApiScan> findFirstByProjectIdAndStatusAndIdLessThanOrderByIdDesc(Long projectId, ScanStatus status, Long id);
 
-    void deleteByProjectId(Long projectId);
+    @Modifying
+    @Query("DELETE FROM ApiScan s WHERE s.project.id = :projectId")
+    void deleteByProjectId(@Param("projectId") Long projectId);
 
     long countByProjectId(Long projectId);
 
