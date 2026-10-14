@@ -33,8 +33,20 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
       # Empty means a random key per start (see SecurityConfig).
       JWT_SECRET: ${JWT_SECRET:-}
+      # The web container passes the client's address in X-Forwarded-For. Spring trusts that header
+      # only from private network addresses, and the backend publishes no port, so only nginx can set it.
+      SERVER_FORWARD_HEADERS_STRATEGY: native
+
+  # The React app served by nginx, which also forwards /api and Swagger UI to the backend.
+  # This is the only way in: http://localhost:3000
+  web:
+    build: ./frontend
+    container_name: api-sentinel-web
+    profiles: ["app"]
+    depends_on:
+      - app
     ports:
-      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:3000:8080"
 
 volumes:
   postgres_data:

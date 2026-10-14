@@ -103,6 +103,20 @@ class RateLimitIntegrationTest {
         login(uniqueEmail(), PASSWORD, "10.0.3.2").andExpect(status().isUnauthorized());
     }
 
+    // Without a trusted proxy in front, a client cannot escape the limit by sending a new X-Forwarded-For each time.
+    @Test
+    void forwardedAddressesFromClientsAreIgnored() throws Exception {
+        for (int attempt = 1; attempt <= 3; attempt++) {
+            mockMvc.perform(post("/api/auth/login").with(from("10.0.6.1")).header("X-Forwarded-For", "198.51.100." + attempt)
+                            .contentType(MediaType.APPLICATION_JSON).content(credentials(uniqueEmail(), PASSWORD)))
+                    .andExpect(status().isUnauthorized());
+        }
+
+        mockMvc.perform(post("/api/auth/login").with(from("10.0.6.1")).header("X-Forwarded-For", "198.51.100.99")
+                        .contentType(MediaType.APPLICATION_JSON).content(credentials(uniqueEmail(), PASSWORD)))
+                .andExpect(status().isTooManyRequests());
+    }
+
     @Test
     void registrationsAreLimitedPerAddress() throws Exception {
         register(uniqueEmail(), "10.0.4.1").andExpect(status().isCreated());
