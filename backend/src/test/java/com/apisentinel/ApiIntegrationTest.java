@@ -11,6 +11,7 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
@@ -180,6 +181,44 @@ class ApiIntegrationTest {
 
         mockMvc.perform(get("/api/projects/{id}/scans", projectId).header("Authorization", token))
                 .andExpect(jsonPath("$[0].status").value("FAILED"));
+    }
+
+    // Regression test: text from the file longer than its database column used to fail the upload with a 500.
+    @Test
+    void oversizedValuesFromTheFileAreShortened() throws Exception {
+        String token = registerAndLogin();
+        long projectId = createProject(token, "Long values");
+        String spec = """
+                openapi: 3.0.0
+                info: {title: Long values, version: '1'}
+                servers:
+                  - url: http://%s.example.com
+                paths:
+                  /%s:
+                    get:
+                      parameters:
+                        - {name: token%s, in: query, schema: {type: string}}
+                      responses:
+                        '200': {description: OK}
+                """.formatted("a".repeat(600), "b".repeat(600), "c".repeat(1000));
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "d".repeat(300) + ".yaml", "application/yaml", spec.getBytes(StandardCharsets.UTF_8));
+
+        MvcResult upload = mockMvc.perform(multipart("/api/projects/{id}/scans/upload", projectId).file(file).header("Authorization", token))
+                .andExpect(status().isCreated())
+                .andReturn();
+        assertThat(json(upload).get("openApiFileName").asText()).hasSize(255);
+
+        MvcResult findings = mockMvc.perform(get("/api/scans/{id}/findings", json(upload).get("id").asLong())
+                        .header("Authorization", token))
+                .andExpect(status().isOk())
+                .andReturn();
+        JsonNode content = json(findings).get("content");
+        assertThat(content).isNotEmpty();
+        content.forEach(finding -> {
+            assertThat(finding.get("path").asText().length()).isLessThanOrEqualTo(500);
+            assertThat(finding.get("description").asText().length()).isLessThanOrEqualTo(1000);
+        });
     }
 
     @Test

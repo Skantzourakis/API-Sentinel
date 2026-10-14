@@ -19,6 +19,8 @@ import java.time.Instant;
 @Table(name = "api_scans")
 public class ApiScan {
 
+    private static final int FILE_NAME_LENGTH = 255;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -37,7 +39,7 @@ public class ApiScan {
     @Column
     private Integer endpointCount;
 
-    @Column(length = 255)
+    @Column(length = FILE_NAME_LENGTH)
     private String openApiFileName;
 
     @Column(nullable = false, updatable = false)
@@ -51,7 +53,8 @@ public class ApiScan {
 
     public ApiScan(Project project, String openApiFileName) {
         this.project = project;
-        this.openApiFileName = openApiFileName;
+        // The file name is chosen by whoever uploads the file.
+        this.openApiFileName = ColumnText.fit(openApiFileName, FILE_NAME_LENGTH);
         this.status = ScanStatus.PENDING;
         this.riskScore = 0;
         this.endpointCount = 0;
@@ -99,7 +102,7 @@ public class ApiScan {
     }
 
     public void setOpenApiFileName(String openApiFileName) {
-        this.openApiFileName = openApiFileName;
+        this.openApiFileName = ColumnText.fit(openApiFileName, FILE_NAME_LENGTH);
     }
 
     public Instant getCreatedAt() {

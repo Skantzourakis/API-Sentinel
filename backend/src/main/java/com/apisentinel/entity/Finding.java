@@ -16,6 +16,9 @@ import jakarta.persistence.Table;
 @Table(name = "findings")
 public class Finding {
 
+    private static final int PATH_LENGTH = 500;
+    private static final int DESCRIPTION_LENGTH = 1000;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -30,7 +33,7 @@ public class Finding {
     @Column(nullable = false, length = 20)
     private String method;
 
-    @Column(nullable = false, length = 500)
+    @Column(nullable = false, length = PATH_LENGTH)
     private String path;
 
     @Enumerated(EnumType.STRING)
@@ -43,7 +46,7 @@ public class Finding {
     @Column(nullable = false, length = 160)
     private String title;
 
-    @Column(nullable = false, length = 1000)
+    @Column(nullable = false, length = DESCRIPTION_LENGTH)
     private String description;
 
     @Column(nullable = false, length = 1000)
@@ -66,11 +69,12 @@ public class Finding {
         this.scan = scan;
         this.ruleId = ruleId;
         this.method = method;
-        this.path = path;
+        // The path and the description can contain text from the uploaded file (paths, server URLs, parameter names).
+        this.path = ColumnText.fit(path, PATH_LENGTH);
         this.severity = severity;
         this.issueType = issueType;
         this.title = title;
-        this.description = description;
+        this.description = ColumnText.fit(description, DESCRIPTION_LENGTH);
         this.recommendation = recommendation;
     }
 
