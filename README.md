@@ -21,6 +21,7 @@ being analysed.
   between two versions of a specification
 - **Scan history** per project, including scans of invalid files recorded as `FAILED`
 - **User accounts with JWT authentication**; each user only sees their own data
+- **Web app** (React) for projects, scans, findings and comparisons
 - **Swagger UI** for exploring and trying the API
 
 ## Tech Stack
@@ -31,14 +32,16 @@ being analysed.
 | Security | Spring Security, OAuth2 Resource Server (JWT, HS256), BCrypt |
 | Database | PostgreSQL 16, Flyway migrations, Hibernate |
 | OpenAPI | swagger-parser (input), springdoc-openapi (own docs) |
+| Frontend | React 19, TypeScript, Vite, Tailwind CSS 4, TanStack Query, React Router |
 | Testing | JUnit 5, AssertJ, MockMvc, H2 |
-| Delivery | Docker (multi-stage build), Docker Compose, GitHub Actions |
+| Delivery | Docker (multi-stage builds), nginx, Docker Compose, GitHub Actions, Dependabot |
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-    Client -->|HTTP + JWT| Controllers
+    Browser -->|HTTP| Web[nginx: React app + security headers]
+    Web -->|/api + JWT| Controllers
     Controllers --> Services
     Services --> Repositories --> DB[(PostgreSQL)]
     Services --> Parser[OpenAPI parser]
@@ -46,6 +49,9 @@ flowchart LR
     Scanner --> Rules[8 security rules]
 ```
 
+- **nginx** serves the built React app and forwards `/api` and Swagger UI to the
+  backend, so the browser sees one origin. It is the only container with a public
+  port, and it adds a Content-Security-Policy and other security headers.
 - **Controllers** handle HTTP and map requests to DTOs; they contain no business logic.
 - **Services** hold the logic and transaction boundaries.
 - **Repositories** use Spring Data JPA, with JPQL for aggregation and ordering.
@@ -74,27 +80,27 @@ Requires Docker.
 docker compose --profile app up -d --build
 ```
 
-- API: `http://localhost:8080`
-- Swagger UI: `http://localhost:8080/swagger-ui.html`
+- Web app: `http://localhost:3000`
+- Swagger UI: `http://localhost:3000/swagger-ui.html`
 
-### Try it
+### Try it with curl
 
 ```bash
 # 1. Create an account and log in
-curl -X POST localhost:8080/api/auth/register -H "Content-Type: application/json" \
+curl -X POST localhost:3000/api/auth/register -H "Content-Type: application/json" \
      -d '{"email":"demo@example.com","password":"supersecret1"}'
-curl -X POST localhost:8080/api/auth/login -H "Content-Type: application/json" \
+curl -X POST localhost:3000/api/auth/login -H "Content-Type: application/json" \
      -d '{"email":"demo@example.com","password":"supersecret1"}'
 # -> {"accessToken":"<token>","tokenType":"Bearer","expiresIn":3600}
 
 # 2. Create a project and scan the included sample specification
-curl -X POST localhost:8080/api/projects -H "Authorization: Bearer <token>" \
+curl -X POST localhost:3000/api/projects -H "Authorization: Bearer <token>" \
      -H "Content-Type: application/json" -d '{"name":"Sample Banking API"}'
-curl -X POST localhost:8080/api/projects/1/scans/upload -H "Authorization: Bearer <token>" \
+curl -X POST localhost:3000/api/projects/1/scans/upload -H "Authorization: Bearer <token>" \
      -F "file=@backend/sample-openapi.yaml"
 
 # 3. Read the results
-curl localhost:8080/api/scans/1/summary -H "Authorization: Bearer <token>"
+curl localhost:3000/api/scans/1/summary -H "Authorization: Bearer <token>"
 ```
 
 ```json
@@ -216,17 +222,27 @@ mvn verify
 - **Integration tests** (MockMvc + H2, running all Flyway migrations) for
   registration and login, token checks, the full scan flow, pagination limits,
   scan comparison, project deletion and cross-user isolation
+- **Security regression tests** for server-side request forgery through `$ref`,
+  YAML alias expansion, SQL injection payloads, rate limits and upload limits
 
-GitHub Actions runs the tests and builds the Docker image on every push.
+GitHub Actions runs on every push: backend tests, frontend lint, type check and
+build, a vulnerability audit of the frontend's shipped dependencies, and a Docker
+build of both apps. Workflow actions are pinned to commit SHAs, and Dependabot
+proposes dependency updates every week.
 
 ## Local Development
 
-Start only the database, then run the application from the IDE or Maven:
+Start only the database, then run the backend from the IDE or Maven and the
+frontend with Vite (`http://localhost:5173`, which forwards `/api` to the backend):
 
 ```bash
 docker compose up -d
 cd backend
 mvn spring-boot:run
+
+cd frontend
+npm install
+npm run dev
 ```
 
 Configuration is read from environment variables, with local defaults:
@@ -237,14 +253,14 @@ Configuration is read from environment variables, with local defaults:
 | `DB_USERNAME` / `DB_PASSWORD` | `postgres` / `postgres` |
 | `JWT_SECRET` | none: a random key is generated at every start, so tokens end on restart. Set at least 32 random bytes in any real environment (for example `openssl rand -base64 48`) |
 
-Docker Compose publishes the database and the API on `127.0.0.1` only, so they
-are not reachable from other machines on the network.
+Docker Compose publishes ports on `127.0.0.1` only, so nothing is reachable from
+other machines on the network. The backend publishes no port at all: it is reached
+through nginx, which also passes the client's address on for the rate limits.
 
 ## Roadmap
 
-- React frontend (dashboard for projects, scans and findings)
-- Rule refinements to reduce false positives (for example, recognising login
-  endpoints and non-list responses)
+- Sessions in HttpOnly cookies with CSRF protection, and server-side logout
+- Following path item references in specifications
 - Optional AI-generated explanations of findings
 
 ## Development History
@@ -263,3 +279,7 @@ Built in milestones, one feature per commit:
 10. Scan comparison
 11. Users, JWT authentication and per-user data isolation
 12. Swagger UI, Docker, CI and tests
+13. React frontend
+14. Security review and hardening: SSRF and YAML expansion fixes, rate limiting,
+    upload limits, no default secrets
+15. Production frontend behind nginx with security headers, CI for both apps, Dependabot
