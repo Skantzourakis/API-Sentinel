@@ -10,7 +10,7 @@ COPY src ./src
 RUN mvn -q -DskipTests package
 
 # Run stage: only the JRE and the built jar, without Maven or the source code.
-FROM eclipse-temurin:21-jre
+FROM eclipse-temurin:24-jre
 WORKDIR /app
 
 RUN useradd --system --no-create-home appuser
