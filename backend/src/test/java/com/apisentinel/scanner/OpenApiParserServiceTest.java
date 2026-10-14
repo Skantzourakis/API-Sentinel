@@ -4,10 +4,17 @@ import com.apisentinel.exception.BadRequestException;
 import com.apisentinel.scanner.model.ApiEndpointInfo;
 import com.apisentinel.scanner.model.OpenApiParseResult;
 import com.apisentinel.scanner.model.ResponseShape;
+import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.Test;
+
+import java.net.InetSocketAddress;
+import java.time.Duration;
+import java.util.Collections;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
 class OpenApiParserServiceTest {
 
@@ -136,6 +143,109 @@ class OpenApiParserServiceTest {
         assertThat(endpoint(result, "GET", "/accounts").getResponseShape()).isEqualTo(ResponseShape.LIST);
         assertThat(endpoint(result, "GET", "/me").getResponseShape()).isEqualTo(ResponseShape.OBJECT);
         assertThat(endpoint(result, "GET", "/health").getResponseShape()).isEqualTo(ResponseShape.UNKNOWN);
+    }
+
+    @Test
+    void followsReferencesInsideTheDocument() {
+        OpenApiParseResult result = parser.parse("""
+                openapi: 3.0.0
+                info: {title: Refs, version: '1'}
+                components:
+                  parameters:
+                    Limit: {name: limit, in: query, schema: {type: integer}}
+                  responses:
+                    UserResponse:
+                      description: OK
+                      content:
+                        application/json:
+                          schema: {type: object}
+                paths:
+                  /users:
+                    get:
+                      parameters:
+                        - $ref: '#/components/parameters/Limit'
+                      responses:
+                        '200':
+                          $ref: '#/components/responses/UserResponse'
+                """);
+
+        ApiEndpointInfo users = endpoint(result, "GET", "/users");
+        assertThat(users.getQueryParameters()).containsExactly("limit");
+        assertThat(users.getResponseShape()).isEqualTo(ResponseShape.OBJECT);
+    }
+
+    @Test
+    void handlesOperationsWithoutSuccessResponses() {
+        OpenApiParseResult result = parser.parse("""
+                openapi: 3.0.0
+                info: {title: Errors only, version: '1'}
+                paths:
+                  /legacy:
+                    get:
+                      responses:
+                        '404': {description: Gone}
+                """);
+
+        assertThat(endpoint(result, "GET", "/legacy").getResponseShape()).isEqualTo(ResponseShape.UNKNOWN);
+    }
+
+    // Regression test for server-side request forgery: an uploaded file must not make the server call out.
+    @Test
+    void neverFetchesReferencesOutsideTheDocument() throws Exception {
+        AtomicInteger requests = new AtomicInteger();
+        HttpServer trap = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        trap.createContext("/", exchange -> {
+            requests.incrementAndGet();
+            exchange.sendResponseHeaders(200, -1);
+            exchange.close();
+        });
+        trap.start();
+        String base = "http://127.0.0.1:" + trap.getAddress().getPort();
+        try {
+            OpenApiParseResult result = parser.parse("""
+                    openapi: 3.0.0
+                    info: {title: Remote refs, version: '1'}
+                    paths:
+                      /remote-path:
+                        $ref: '%1$s/path-item'
+                      /items:
+                        get:
+                          parameters:
+                            - $ref: '%1$s/parameter'
+                          responses:
+                            '200':
+                              description: OK
+                              content:
+                                application/json:
+                                  schema:
+                                    $ref: '%1$s/schema'
+                            '404':
+                              $ref: '%1$s/response'
+                    """.formatted(base));
+
+            assertThat(requests).hasValue(0);
+            assertThat(endpoint(result, "GET", "/items").getResponseShape()).isEqualTo(ResponseShape.UNKNOWN);
+        } finally {
+            trap.stop(0);
+        }
+    }
+
+    // A "billion laughs" document: under 1 KB of YAML aliases that expand to billions of nodes.
+    @Test
+    void rejectsYamlThatExpandsWithoutBoundsQuickly() {
+        StringBuilder yaml = new StringBuilder("openapi: 3.0.0\ninfo: {title: bomb, version: '1'}\n");
+        yaml.append("x-a0: &a0 [lol, lol, lol, lol, lol, lol, lol, lol, lol]\n");
+        for (int level = 1; level <= 9; level++) {
+            yaml.append("x-a").append(level).append(": &a").append(level).append(" [");
+            yaml.append(String.join(", ", Collections.nCopies(9, "*a" + (level - 1))));
+            yaml.append("]\n");
+        }
+        yaml.append("paths: {}\n");
+
+        assertTimeoutPreemptively(Duration.ofSeconds(5), () ->
+                assertThatThrownBy(() -> parser.parse(yaml.toString()))
+                        .isInstanceOf(BadRequestException.class)
+                        .hasMessageContaining("too complex"));
     }
 
     @Test
