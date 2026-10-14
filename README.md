@@ -230,7 +230,10 @@ Configuration is read from environment variables, with local defaults:
 |----------|---------|
 | `DB_URL` | `jdbc:postgresql://localhost:5432/api_sentinel` |
 | `DB_USERNAME` / `DB_PASSWORD` | `postgres` / `postgres` |
-| `JWT_SECRET` | development-only value; set at least 32 characters in any real environment |
+| `JWT_SECRET` | none: a random key is generated at every start, so tokens end on restart. Set at least 32 random bytes in any real environment (for example `openssl rand -base64 48`) |
+
+Docker Compose publishes the database and the API on `127.0.0.1` only, so they
+are not reachable from other machines on the network.
 
 ## Roadmap
 

@@ -4,6 +4,8 @@ import com.apisentinel.exception.ApiErrorResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -27,22 +29,36 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
 import java.util.List;
 
 @Configuration
 public class SecurityConfig {
 
+    private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
+
     private final SecretKey jwtKey;
     private final ObjectMapper objectMapper;
 
     public SecurityConfig(@Value("${app.jwt.secret}") String secret, ObjectMapper objectMapper) {
+        this.jwtKey = jwtKey(secret);
+        this.objectMapper = objectMapper;
+    }
+
+    // There is deliberately no default secret in the code: anyone who knows the key can sign a token for any user.
+    static SecretKey jwtKey(String secret) {
+        if (secret == null || secret.isBlank()) {
+            log.warn("JWT_SECRET is not set: using a random signing key, so tokens stop working when the application restarts");
+            byte[] randomKey = new byte[32];
+            new SecureRandom().nextBytes(randomKey);
+            return new SecretKeySpec(randomKey, "HmacSHA256");
+        }
         byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
         // HS256 needs a key of at least 256 bits.
         if (keyBytes.length < 32) {
             throw new IllegalStateException("app.jwt.secret must be at least 32 bytes long");
         }
-        this.jwtKey = new SecretKeySpec(keyBytes, "HmacSHA256");
-        this.objectMapper = objectMapper;
+        return new SecretKeySpec(keyBytes, "HmacSHA256");
     }
 
     @Bean
