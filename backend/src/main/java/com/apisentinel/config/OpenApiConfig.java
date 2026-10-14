@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.enums.SecuritySchemeType;
 import io.swagger.v3.oas.annotations.info.Info;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.security.SecurityScheme;
+import io.swagger.v3.oas.annotations.servers.Server;
 import org.springframework.context.annotation.Configuration;
 
 // Describes the API in the generated OpenAPI document and adds the "Authorize" button to Swagger UI.
@@ -16,7 +17,9 @@ import org.springframework.context.annotation.Configuration;
                 description = "Static security analysis for OpenAPI specifications. "
                         + "Register and log in under /api/auth, then use Authorize with the access token."
         ),
-        security = @SecurityRequirement(name = "bearerAuth")
+        security = @SecurityRequirement(name = "bearerAuth"),
+        // Relative, so "Try it out" calls the server that served the page, also behind nginx on another port.
+        servers = @Server(url = "/")
 )
 @SecurityScheme(
         name = "bearerAuth",
