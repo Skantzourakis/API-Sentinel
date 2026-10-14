@@ -1,5 +1,6 @@
 package com.apisentinel.exception;
 
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -49,6 +50,19 @@ public class GlobalExceptionHandler {
                 List.of(ex.getMessage())
         );
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(body);
+    }
+
+    // Retry-After tells clients (and well-behaved scripts) how long to wait instead of retrying at once.
+    @ExceptionHandler(TooManyRequestsException.class)
+    public ResponseEntity<ApiErrorResponse> handleTooManyRequests(TooManyRequestsException ex) {
+        ApiErrorResponse body = new ApiErrorResponse(
+                HttpStatus.TOO_MANY_REQUESTS.value(),
+                "Too many requests",
+                List.of(ex.getMessage())
+        );
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(ex.getRetryAfterSeconds()))
+                .body(body);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

@@ -6,6 +6,7 @@ import com.apisentinel.dto.auth.TokenResponse;
 import com.apisentinel.dto.auth.UserResponse;
 import com.apisentinel.service.AuthService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirements;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -25,14 +26,16 @@ public class AuthController {
         this.authService = authService;
     }
 
+    // getRemoteAddr() is the address of the direct caller. X-Forwarded-For is deliberately not read:
+    // any client can set it to a new value on every request and so escape the per-address limits.
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
-    public UserResponse register(@Valid @RequestBody RegisterRequest request) {
-        return authService.register(request);
+    public UserResponse register(@Valid @RequestBody RegisterRequest request, HttpServletRequest httpRequest) {
+        return authService.register(request, httpRequest.getRemoteAddr());
     }
 
     @PostMapping("/login")
-    public TokenResponse login(@Valid @RequestBody LoginRequest request) {
-        return authService.login(request);
+    public TokenResponse login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest) {
+        return authService.login(request, httpRequest.getRemoteAddr());
     }
 }

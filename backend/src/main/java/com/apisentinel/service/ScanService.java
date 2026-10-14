@@ -21,11 +21,13 @@ import com.apisentinel.scanner.OpenApiParserService;
 import com.apisentinel.scanner.RiskScore;
 import com.apisentinel.scanner.SecurityScanner;
 import com.apisentinel.scanner.model.OpenApiParseResult;
+import com.apisentinel.security.RateLimits;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -48,38 +50,57 @@ public class ScanService {
     private final ProjectRepository projectRepository;
     private final OpenApiParserService openApiParserService;
     private final SecurityScanner securityScanner;
+    private final RateLimits rateLimits;
+    private final TransactionTemplate transactionTemplate;
 
     public ScanService(
             ApiScanRepository apiScanRepository,
             FindingRepository findingRepository,
             ProjectRepository projectRepository,
             OpenApiParserService openApiParserService,
-            SecurityScanner securityScanner
+            SecurityScanner securityScanner,
+            RateLimits rateLimits,
+            TransactionTemplate transactionTemplate
     ) {
         this.apiScanRepository = apiScanRepository;
         this.findingRepository = findingRepository;
         this.projectRepository = projectRepository;
         this.openApiParserService = openApiParserService;
         this.securityScanner = securityScanner;
+        this.rateLimits = rateLimits;
+        this.transactionTemplate = transactionTemplate;
     }
 
-    // noRollbackFor keeps the FAILED scan in the history even though the request returns 400.
-    @Transactional(noRollbackFor = BadRequestException.class)
+    // The file is parsed before any transaction starts, so analysing it never holds one of the few database
+    // connections; only the writes at the end run in a transaction.
     public ApiScanResponse createScanFromUpload(Long ownerId, Long projectId, MultipartFile file) {
-        Project project = findProject(ownerId, projectId);
+        rateLimits.checkUpload(ownerId);
+        if (!projectRepository.existsByIdAndOwnerId(projectId, ownerId)) {
+            throw projectNotFound(projectId);
+        }
         validateOpenApiFile(file);
-
-        ApiScan scan = apiScanRepository.save(new ApiScan(project, normalizeFileName(file.getOriginalFilename())));
+        String fileName = normalizeFileName(file.getOriginalFilename());
 
         OpenApiParseResult parseResult;
         try {
             parseResult = parseOpenApiFile(file);
         } catch (BadRequestException e) {
-            scan.setStatus(ScanStatus.FAILED);
-            scan.setCompletedAt(Instant.now());
+            // The FAILED scan stays in the history even though the request returns 400.
+            transactionTemplate.executeWithoutResult(status -> saveFailedScan(ownerId, projectId, fileName));
             throw e;
         }
+        return transactionTemplate.execute(status -> saveCompletedScan(ownerId, projectId, fileName, parseResult));
+    }
 
+    private void saveFailedScan(Long ownerId, Long projectId, String fileName) {
+        ApiScan scan = new ApiScan(findProject(ownerId, projectId), fileName);
+        scan.setStatus(ScanStatus.FAILED);
+        scan.setCompletedAt(Instant.now());
+        apiScanRepository.save(scan);
+    }
+
+    private ApiScanResponse saveCompletedScan(Long ownerId, Long projectId, String fileName, OpenApiParseResult parseResult) {
+        ApiScan scan = apiScanRepository.save(new ApiScan(findProject(ownerId, projectId), fileName));
         scan.setEndpointCount(parseResult.getEndpointCount());
 
         List<Finding> findings = securityScanner.scan(scan, parseResult);
@@ -97,7 +118,7 @@ public class ScanService {
     @Transactional(readOnly = true)
     public List<ApiScanResponse> getScansForProject(Long ownerId, Long projectId) {
         if (!projectRepository.existsByIdAndOwnerId(projectId, ownerId)) {
-            throw new ResourceNotFoundException("Project with id " + projectId + " was not found");
+            throw projectNotFound(projectId);
         }
 
         Map<Long, Map<FindingSeverity, Long>> countsByScan = new HashMap<>();
@@ -156,7 +177,11 @@ public class ScanService {
     // Scans of other users' projects are reported as not found.
     private Project findProject(Long ownerId, Long projectId) {
         return projectRepository.findByIdAndOwnerId(projectId, ownerId)
-                .orElseThrow(() -> new ResourceNotFoundException("Project with id " + projectId + " was not found"));
+                .orElseThrow(() -> projectNotFound(projectId));
+    }
+
+    private ResourceNotFoundException projectNotFound(Long projectId) {
+        return new ResourceNotFoundException("Project with id " + projectId + " was not found");
     }
 
     private ApiScan findScan(Long ownerId, Long scanId) {

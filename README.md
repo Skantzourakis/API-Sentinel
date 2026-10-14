@@ -186,6 +186,11 @@ Errors use one JSON shape:
   error for an unknown email and a wrong password.
 - **The API follows its own rules.** Findings are paginated with a maximum page
   size of 100, and aggregation (`GROUP BY` per severity) runs in the database.
+- **Limits against abuse.** Logins are limited per address and per account (five
+  failed attempts pause an account for 15 minutes), registrations per address and
+  uploads per user; the API answers `429` with a `Retry-After` header. Uploaded
+  files are capped at 2 MB, 2,000 operations and 50 servers, and are parsed before
+  any database transaction starts.
 - **Flyway owns the schema.** Hibernate only validates it (`ddl-auto=validate`),
   so every schema change is a versioned SQL migration.
 - **DTOs at the boundary.** Entities are never serialized directly, so internal

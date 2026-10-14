@@ -9,6 +9,7 @@ import com.apisentinel.exception.ConflictException;
 import com.apisentinel.exception.UnauthorizedException;
 import com.apisentinel.repository.UserAccountRepository;
 import com.apisentinel.security.JwtService;
+import com.apisentinel.security.RateLimits;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -22,19 +23,23 @@ public class AuthService {
     private final UserAccountRepository userAccountRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final RateLimits rateLimits;
 
     public AuthService(
             UserAccountRepository userAccountRepository,
             PasswordEncoder passwordEncoder,
-            JwtService jwtService
+            JwtService jwtService,
+            RateLimits rateLimits
     ) {
         this.userAccountRepository = userAccountRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.rateLimits = rateLimits;
     }
 
     @Transactional
-    public UserResponse register(RegisterRequest request) {
+    public UserResponse register(RegisterRequest request, String clientAddress) {
+        rateLimits.checkRegistration(clientAddress);
         String email = normalizeEmail(request.getEmail());
         if (userAccountRepository.existsByEmail(email)) {
             throw new ConflictException("An account with this email already exists");
@@ -51,12 +56,17 @@ public class AuthService {
     }
 
     @Transactional(readOnly = true)
-    public TokenResponse login(LoginRequest request) {
+    public TokenResponse login(LoginRequest request, String clientAddress) {
+        String email = normalizeEmail(request.getEmail());
+        // Checked before the password, so a blocked attacker learns nothing and costs no BCrypt work.
+        rateLimits.checkLogin(clientAddress, email);
+
         // The same message for an unknown email and a wrong password, so attackers cannot discover accounts.
-        UserAccount user = userAccountRepository.findByEmail(normalizeEmail(request.getEmail()))
+        UserAccount user = userAccountRepository.findByEmail(email)
                 .filter(candidate -> passwordEncoder.matches(request.getPassword(), candidate.getPasswordHash()))
                 .orElseThrow(() -> new UnauthorizedException("Invalid email or password"));
 
+        rateLimits.loginSucceeded(email);
         return new TokenResponse(jwtService.issueToken(user), jwtService.getExpirationSeconds());
     }
 

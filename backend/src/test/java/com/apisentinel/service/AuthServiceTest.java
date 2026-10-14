@@ -4,6 +4,7 @@ import com.apisentinel.dto.auth.RegisterRequest;
 import com.apisentinel.exception.ConflictException;
 import com.apisentinel.repository.UserAccountRepository;
 import com.apisentinel.security.JwtService;
+import com.apisentinel.security.RateLimits;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -16,8 +17,8 @@ import static org.mockito.Mockito.when;
 class AuthServiceTest {
 
     private final UserAccountRepository userAccountRepository = mock(UserAccountRepository.class);
-    private final AuthService authService =
-            new AuthService(userAccountRepository, new BCryptPasswordEncoder(4), mock(JwtService.class));
+    private final AuthService authService = new AuthService(
+            userAccountRepository, new BCryptPasswordEncoder(4), mock(JwtService.class), new RateLimits(100, 100, 100, 100));
 
     // Two registrations at the same moment: both see no account, and the database's unique index rejects the second.
     @Test
@@ -29,6 +30,6 @@ class AuthServiceTest {
         request.setEmail("race@example.com");
         request.setPassword("supersecret1");
 
-        assertThatThrownBy(() -> authService.register(request)).isInstanceOf(ConflictException.class);
+        assertThatThrownBy(() -> authService.register(request, "127.0.0.1")).isInstanceOf(ConflictException.class);
     }
 }
