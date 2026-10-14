@@ -34,6 +34,11 @@ public class OpenApiParserService {
     private static final String PARAMETERS = "#/components/parameters/";
     private static final String RESPONSES = "#/components/responses/";
 
+    // Every operation and server can become several database rows, and a 2 MB file (or a few YAML aliases)
+    // can describe hundreds of thousands of them. Real specifications stay far below these limits.
+    static final int MAX_OPERATIONS = 2_000;
+    static final int MAX_SERVERS = 50;
+
     static {
         // The parser allows 10 million YAML alias expansions by default, so a 557-byte
         // "billion laughs" upload kept a CPU busy for seconds. Real specifications need far fewer.
@@ -59,9 +64,22 @@ public class OpenApiParserService {
         }
 
         List<String> serverUrls = extractServerUrls(openAPI);
+        if (serverUrls.size() > MAX_SERVERS) {
+            throw new BadRequestException("Uploaded file declares " + serverUrls.size()
+                    + " servers; at most " + MAX_SERVERS + " can be analysed");
+        }
         List<ApiEndpointInfo> endpoints = new ArrayList<>();
         if (openAPI.getPaths() == null) {
             return new OpenApiParseResult(endpoints, serverUrls);
+        }
+
+        int operationCount = openAPI.getPaths().values().stream()
+                .filter(Objects::nonNull)
+                .mapToInt(pathItem -> pathItem.readOperations().size())
+                .sum();
+        if (operationCount > MAX_OPERATIONS) {
+            throw new BadRequestException("Uploaded file has " + operationCount
+                    + " operations; at most " + MAX_OPERATIONS + " can be analysed");
         }
 
         boolean globalSecurity = openAPI.getSecurity() != null && !openAPI.getSecurity().isEmpty();

@@ -248,6 +248,32 @@ class OpenApiParserServiceTest {
                         .hasMessageContaining("too complex"));
     }
 
+    // Each operation becomes several findings, so an unbounded count could fill the database from one upload.
+    @Test
+    void rejectsMoreOperationsThanCanBeAnalysed() {
+        StringBuilder yaml = new StringBuilder("openapi: 3.0.0\ninfo: {title: Many operations, version: '1'}\npaths:\n");
+        for (int i = 0; i <= OpenApiParserService.MAX_OPERATIONS; i++) {
+            yaml.append("  /items").append(i).append(":\n    get:\n      responses: {'200': {description: OK}}\n");
+        }
+
+        assertThatThrownBy(() -> parser.parse(yaml.toString()))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("at most " + OpenApiParserService.MAX_OPERATIONS);
+    }
+
+    @Test
+    void rejectsMoreServersThanCanBeAnalysed() {
+        StringBuilder yaml = new StringBuilder("openapi: 3.0.0\ninfo: {title: Many servers, version: '1'}\nservers:\n");
+        for (int i = 0; i <= OpenApiParserService.MAX_SERVERS; i++) {
+            yaml.append("  - url: http://server").append(i).append(".example.com\n");
+        }
+        yaml.append("paths: {}\n");
+
+        assertThatThrownBy(() -> parser.parse(yaml.toString()))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("at most " + OpenApiParserService.MAX_SERVERS);
+    }
+
     @Test
     void rejectsContentThatIsNotOpenApi() {
         assertThatThrownBy(() -> parser.parse("hello"))
