@@ -13,6 +13,7 @@ import org.springframework.test.web.servlet.MvcResult;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -226,6 +227,32 @@ class ApiIntegrationTest {
                 .andExpect(status().isNotFound());
         mockMvc.perform(get("/api/projects/{id}", projectId).header("Authorization", alice))
                 .andExpect(status().isOk());
+    }
+
+    // Regression test: classic SQL injection payloads must be treated as plain data everywhere.
+    @Test
+    void sqlInjectionPayloadsAreTreatedAsData() throws Exception {
+        mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .content(credentials("' OR '1'='1' --", "' OR '1'='1")))
+                .andExpect(status().isUnauthorized());
+
+        String token = registerAndLogin();
+        String payload = "Robert'); DROP TABLE projects;--";
+        MvcResult created = mockMvc.perform(post("/api/projects")
+                        .header("Authorization", token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("name", payload))))
+                .andExpect(status().isCreated())
+                .andReturn();
+        assertThat(json(created).get("name").asText()).isEqualTo(payload);
+
+        mockMvc.perform(get("/api/projects/1 OR 1=1").header("Authorization", token))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/scans/1/findings").param("severity", "HIGH' OR '1'='1").header("Authorization", token))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/projects").header("Authorization", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1));
     }
 
     @Test
