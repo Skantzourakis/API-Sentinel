@@ -1,5 +1,5 @@
 # Build stage: install the exact versions from package-lock.json and build the static files.
-FROM node:24-alpine AS build
+FROM node:25-alpine AS build
 WORKDIR /app
 
 # Dependencies are copied first so they stay cached until the lockfile changes.
